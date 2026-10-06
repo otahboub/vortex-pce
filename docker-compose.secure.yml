@@ -1,0 +1,39 @@
+# Secure deployment overlay: TLS on both planes.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.secure.yml up -d
+#
+# The base file publishes both ports in plaintext on host loopback, which is defensible for a
+# local demonstration and not for a reachable management plane. This overlay turns on northbound
+# HTTPS and PCEPS, so the API key stops crossing the network in the clear and a PCC must present
+# a certificate rather than assert a name.
+#
+# Run deploy/generate-dev-certificates.sh first for development stores. A real deployment mounts
+# stores issued by its own authority and supplies the passwords through its secret manager rather
+# than the environment -- these are read at startup only, so any mechanism that lands them in the
+# process environment or on a mounted file works.
+services:
+  vortex-controller:
+    environment:
+      VORTEX_API_TLS_KEYSTORE: /run/certs/api.p12
+      VORTEX_API_TLS_KEYSTORE_PASSWORD: ${VORTEX_CERT_PASSWORD:?Set VORTEX_CERT_PASSWORD}
+      VORTEX_PCEP_TLS_KEYSTORE: /run/certs/pcep-server.p12
+      VORTEX_PCEP_TLS_KEYSTORE_PASSWORD: ${VORTEX_CERT_PASSWORD:?Set VORTEX_CERT_PASSWORD}
+      VORTEX_PCEP_TLS_TRUSTSTORE: /run/certs/pcep-truststore.p12
+      VORTEX_PCEP_TLS_TRUSTSTORE_PASSWORD: ${VORTEX_CERT_PASSWORD:?Set VORTEX_CERT_PASSWORD}
+      # With PCEPS on, this names certificate subjects rather than addresses. A peer that presents
+      # a trusted certificate it is not listed for is authenticated and still refused: being known
+      # and being authorised are different questions.
+      # JSON is intentional: commas are part of an X.500 distinguished name and therefore cannot
+      # also delimit a list of subjects. The controller canonicalizes both sides before matching.
+      VORTEX_PCEP_PERMITTED_PEERS: >-
+        ${VORTEX_PCEP_PERMITTED_PEERS:-["CN=pcc-alpha,OU=development-only,O=VortexPCE"]}
+      VORTEX_PCEP_LISTENER: JAVA
+    volumes:
+      # Read-only: the controller reads these at startup and never writes them, and a compromised
+      # process should not be able to replace the identity it serves.
+      - ./deploy/certs:/run/certs:ro
+    healthcheck:
+      # Liveness only. A raw TCP connection cannot prove PCEPS trust or peer authorization and
+      # previously let this container report healthy while refusing its generated PCC. Run
+      # deploy/verify-secure-profile.sh as the explicit HTTPS + mutual-TLS readiness qualification.
+      test: ["CMD", "python3", "-c", "import ssl,urllib.request; ctx=ssl._create_unverified_context(); urllib.request.urlopen('https://localhost:8080/livez', timeout=2, context=ctx).read()"]

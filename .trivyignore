@@ -1,0 +1,15 @@
+# Accepted image-scan findings.
+#
+# Policy: CI reports every CRITICAL/HIGH into the Security tab, and separately fails the
+# build on any CRITICAL or HIGH that has a fix available upstream. A finding is listed here
+# only when it is fixable and deliberately accepted anyway — each entry needs a reason and a
+# review date, and `tools/check_vulnerability_exceptions.py` fails the build once that date
+# passes, so an exception is renewed deliberately rather than by default.
+#
+# Format:
+#   CVE-YYYY-NNNNN  # <reason> (accepted YYYY-MM-DD, review by YYYY-MM-DD)
+#
+# Findings that are unfixable upstream do NOT belong here: ignore-unfixed already excludes
+# them from the gate, and listing them would hide them once a fix does appear.
+#
+# No accepted exceptions at present.

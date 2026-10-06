@@ -1,0 +1,14 @@
+{
+  "regime": "R_STATIC",
+  "nodes": [
+    {"nodeId": "HEAD", "name": "HEAD", "serviceRateBps": 1e9, "reservoirCapacityBytes": 1e9,
+     "ipv4": "10.80.0.2"},
+    {"nodeId": "TAIL", "name": "TAIL", "serviceRateBps": 1e9, "reservoirCapacityBytes": 1e9,
+     "ipv4": "10.80.0.3", "mplsLabel": 16020}
+  ],
+  "links": [
+    {"linkId": "HEAD-TAIL", "sourceNodeId": "HEAD", "destinationNodeId": "TAIL",
+     "baseBandwidthBps": 1e9, "propagationDelaySec": 0.0001,
+     "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0}
+  ]
+}

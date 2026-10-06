@@ -1,0 +1,105 @@
+name: SR Forwarding Lifecycle
+
+# An enforcing gate one step beyond the interop workflow. Interop proves a router-grade PCC keeps
+# a session up and synchronises state; this proves that an LSP this controller *initiates* is
+# programmed into a real MPLS forwarding plane and carries traffic.
+#
+# It drives a VortexPCE PCInitiate into FRR pathd, has pathd build a PCE-initiated SR policy,
+# resolves the segment against a static LSP so the policy goes operationally ACTIVE, and forwards
+# labelled traffic over it. Every verdict is read from pathd or the dataplane, never from
+# VortexPCE.
+#
+# Separate from CI because it needs MPLS in the kernel and privileged containers. It stays MANUAL
+# (workflow_dispatch) rather than a PR gate for a hard infrastructure reason, not a fixture-maturity
+# one: GitHub-hosted ubuntu-latest runners do not ship the MPLS kernel modules, so the lifecycle
+# cannot run there at all. A dispatch run on 2026-08-26 (run 33003831476) failed at the first step --
+# "modprobe: FATAL: Module mpls_router not found in directory /lib/modules/6.17.0-1022-azure" -- and
+# the build and lifecycle steps never executed. The lifecycle itself has been run locally against
+# FRR 8.4 with tests/forwarding/run_forwarding_lifecycle.sh.
+#
+# To make this an enforcing gate it must run on a self-hosted (or VM-nested) runner whose kernel has
+# mpls_router/mpls_iptunnel loaded. Once such a runner exists: switch the trigger to `pull_request`
+# (add `runs-on: [self-hosted, mpls]` or similar). Until then, a green result here comes only from a
+# manual dispatch on an MPLS-capable host.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Use the same immutable, independently implemented PCC as the enforcing control-plane gate.
+  FRR_IMAGE: quay.io/frrouting/frr@sha256:65e5967b922572c0565d968388fb06af69d7e9b3b3eea40ad7e3810687667f68
+
+concurrency:
+  group: vortex-forwarding-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sr-forwarding:
+    name: PCE-initiated SR policy reaches the forwarding plane
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Confirm the runner kernel has MPLS
+        run: |
+          set -euo pipefail
+          sudo modprobe mpls_router mpls_iptunnel || true
+          test -d /proc/sys/net/mpls || { echo "no MPLS in this kernel; cannot run"; exit 1; }
+
+      - name: Build the controller image
+        run: docker build -t vortex-pce-controller:latest .
+
+      - name: Run the forwarding lifecycle
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/study1-10-forwarding-evidence"
+          mkdir -p "$evidence"
+          EVIDENCE_DIR="$evidence" \
+            timeout --signal=TERM --kill-after=15s 10m \
+            bash tests/forwarding/run_forwarding_lifecycle.sh \
+            2>&1 | tee "$evidence/lifecycle.log"
+
+      - name: Hash the evidence bundle
+        if: always()
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/study1-10-forwarding-evidence"
+          mkdir -p "$evidence"
+          find "$evidence" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > "$evidence/SHA256SUMS"
+
+      - name: Verify zero residual forwarding resources
+        if: always()
+        run: |
+          set -euo pipefail
+          leaked=0
+          for container in fwd-head fwd-tail fwd-pce; do
+            if docker container inspect "$container" >/dev/null 2>&1; then
+              echo "::error::Residual forwarding container: $container"
+              leaked=1
+            fi
+          done
+          if docker network inspect fwdnet >/dev/null 2>&1; then
+            echo "::error::Residual forwarding network: fwdnet"
+            leaked=1
+          fi
+          test "$leaked" -eq 0
+
+      - name: Upload forwarding evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: study1-10-forwarding-evidence
+          path: ${{ runner.temp }}/study1-10-forwarding-evidence
+          retention-days: 14
+
+      - name: Emergency cleanup
+        if: always()
+        run: |
+          docker rm -f fwd-head fwd-tail fwd-pce >/dev/null 2>&1 || true
+          docker network rm fwdnet >/dev/null 2>&1 || true

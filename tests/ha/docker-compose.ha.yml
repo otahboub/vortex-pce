@@ -1,0 +1,44 @@
+# Two VortexPCE controllers sharing one PostgreSQL, for the destructive HA fault harness.
+# Both run the Postgres reservation backend against the same
+# database, so exactly one may hold leadership at a time; run_ha_faults.sh drives the faults and
+# asserts the invariants. Single host, single Postgres by design — cross-host database clock skew
+# and managed-Postgres primary failover are a separate real-infra track (see README).
+services:
+  ha-postgres:
+    # Same digest pin as the CI service, so the harness is reproducible.
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  vortex-a: &vortex
+    image: ${VORTEX_IMAGE:-vortex-ha:local}
+    depends_on:
+      ha-postgres:
+        condition: service_healthy
+    environment: &vortex-env
+      VORTEX_RESERVATION_BACKEND: postgres
+      VORTEX_POSTGRES_URL: jdbc:postgresql://ha-postgres:5432/postgres
+      VORTEX_POSTGRES_USER: postgres
+      VORTEX_POSTGRES_PASSWORD: postgres
+      # The API requires a key to start (authenticated endpoints); the probes the harness reads
+      # (/livez, /clusterz) are unauthenticated. A fixed test key is fine for a throwaway harness.
+      VORTEX_API_KEY: ha-harness-key
+      # PCEP off: leadership election is a REST + Postgres concern, and keeping the southbound
+      # listener out of the baseline harness avoids port coupling. A later phase adds a mock PCC.
+      VORTEX_PCEP_LISTENER: DISABLED
+    ports:
+      - "127.0.0.1:18080:8080"
+
+  vortex-b:
+    <<: *vortex
+    environment:
+      <<: *vortex-env
+    ports:
+      - "127.0.0.1:18081:8080"

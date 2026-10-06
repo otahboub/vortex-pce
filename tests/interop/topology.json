@@ -1,0 +1,32 @@
+{
+  "regime": "R_STATIC",
+  "nodes": [
+    {
+      "nodeId": "PCC",
+      "name": "pcc",
+      "serviceRateBps": 1000000000.0,
+      "reservoirCapacityBytes": 100000000.0,
+      "ipv4": "172.29.0.3"
+    },
+    {
+      "nodeId": "EGRESS",
+      "name": "egress",
+      "serviceRateBps": 1000000000.0,
+      "reservoirCapacityBytes": 100000000.0,
+      "ipv4": "172.29.0.2",
+      "mplsLabel": 16010
+    }
+  ],
+  "links": [
+    {
+      "linkId": "PCC-EGRESS",
+      "sourceNodeId": "PCC",
+      "destinationNodeId": "EGRESS",
+      "baseBandwidthBps": 100000000.0,
+      "propagationDelaySec": 0.0001,
+      "activeContactSec": 1.0,
+      "inactivePreSec": 0.0,
+      "inactivePostSec": 0.0
+    }
+  ]
+}

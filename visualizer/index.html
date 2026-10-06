@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow-Aware PCE Illustrative Visualizer</title>
+  <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Top Navbar -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <div class="brand-title">Flow-Aware PCE Visualizer</div>
+        </div>
+        <div class="brand-tag">STATIC DEMO</div>
+      </div>
+
+      <div class="header-controls">
+        <div class="nav-tabs">
+          <button class="tab-btn active">Illustrative Animation</button>
+          <button class="tab-btn" onclick="alert('This static visualizer is not connected to a PCEP session.')">PCEP View</button>
+          <button class="tab-btn" onclick="alert('This static visualizer is not connected to Mininet or a Linux kernel.')">Kernel View</button>
+        </div>
+
+        <div class="status-badge">
+          <div class="pulse-dot"></div>
+          <span>NOT LIVE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sidebar Controls Deck -->
+    <aside class="app-sidebar">
+      
+      <div class="control-group">
+        <div class="panel-title">
+          <span>Topology View</span>
+        </div>
+        <select id="tierSelect" class="select-input">
+          <option value="tier1">Tier 1: ESnet 38 Continental WAN</option>
+          <option value="tier2" selected>Tier 2: Kuiper-630 LEO Constellation (1,256 Sats)</option>
+          <option value="tier3">Tier 3: Starlink Mega-Constellation (3,236 Sats)</option>
+          <option value="cloud">Illustrative Cloud Mesh (NYC / SFO / FRA)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <div class="panel-title">
+          <span>4-Stage Policy Archetype</span>
+        </div>
+        <select id="archSelect" class="select-input">
+          <option value="arch3" selected>Arch 3: Advance Reservation DFE Prototype</option>
+          <option value="arch1">Arch 1: Static Shortest-Path Burst (CSPF)</option>
+          <option value="arch2">Arch 2: Multi-Path Fair-Alloc (B4 / SWAN LP)</option>
+          <option value="arch4">Arch 4: Time-Gated Archetype (IEEE 802.1Qbv TSN)</option>
+          <option value="arch5">Arch 5: Storage-Assisted (NetStitcher SnF)</option>
+          <option value="arch6">Arch 6: Snapshot-Routing (iSatCR / SGR)</option>
+          <option value="arch7">Arch 7: Deterministic Contact-Plan (NASA ION CGR)</option>
+          <option value="arch8">Arch 8: Stochastic-Contact (PRoPHET / RUCoP)</option>
+        </select>
+      </div>
+
+      <!-- Live 4-Stage Tuple Inspector -->
+      <div class="control-group">
+        <div class="control-label">4-Stage Tuple Decomposition <span style="font-family: var(--font-mono); color: var(--color-primary);">PCE = ⟨H1, F1, H2, F2⟩</span></div>
+        <div class="tuple-badge-container">
+          <div class="tuple-badge">
+            <div class="tuple-stage">H1 Demand</div>
+            <div id="tupleH1" class="tuple-val">LWEEF</div>
+          </div>
+          <div class="tuple-badge">
+            <div class="tuple-stage">F1 Route</div>
+            <div id="tupleF1" class="tuple-val">Caller Path</div>
+          </div>
+          <div class="tuple-badge">
+            <div class="tuple-stage">H2 Rate</div>
+            <div id="tupleH2" class="tuple-val">DFE e*</div>
+          </div>
+          <div class="tuple-badge">
+            <div class="tuple-stage">F2 Commit</div>
+            <div id="tupleF2" class="tuple-val">In-Memory Ledger</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fault Injection Deck -->
+      <div class="control-group">
+        <div class="panel-title">
+          <span>Link Fault Illustration</span>
+          <span id="faultVal" style="color: var(--color-danger); font-family: var(--font-mono);">0%</span>
+        </div>
+        <input type="range" id="faultSlider" class="range-input" min="0" max="30" value="0">
+      </div>
+
+      <!-- Linux Kernel TCP Stack Config -->
+      <div class="control-group">
+        <div class="panel-title">
+          <span>Displayed TCP Variant</span>
+        </div>
+        <select id="tcpSelect" class="select-input">
+          <option value="cubic">TCP CUBIC (Linux Default)</option>
+          <option value="bbrv2">TCP BBRv2 (Bottleneck Bandwidth and RTT)</option>
+          <option value="reno">TCP Reno (Classic AIMD)</option>
+        </select>
+      </div>
+
+      <!-- Simulation Play Controls -->
+      <div class="sim-deck" style="margin-top: auto;">
+        <button id="playBtn" class="btn-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+        <button class="btn-icon btn-secondary" onclick="loadTopology(state.currentTier)">Reset</button>
+      </div>
+
+    </aside>
+
+    <!-- Main Topology Canvas Viewport -->
+    <main class="app-main">
+      <canvas id="topologyCanvas"></canvas>
+      
+      <div class="canvas-overlay-hud">
+        <div class="hud-pill">
+          <span>VISIBLE NODES:</span>
+          <span id="hudNodes" class="hud-val">38</span>
+        </div>
+        <div class="hud-pill">
+          <span>ACTIVE LINKS:</span>
+          <span id="hudLinks" class="hud-val">304</span>
+        </div>
+      </div>
+
+      <div class="legend-box">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #7928ca;"></div>
+          <span>Master PCE Node</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #00f3ff;"></div>
+          <span>Active Router / Satellite</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #00ff9d;"></div>
+          <span>Animated Flow Marker</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ff0055;"></div>
+          <span>Link Fault / Drop</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Side Log & Protocol Inspector -->
+    <aside class="app-panel">
+      <div class="panel-title">
+        <span>Illustrative Event Log</span>
+      </div>
+
+      <div id="logBox" class="log-container">
+        <!-- Log entries populated via JS -->
+      </div>
+    </aside>
+
+    <!-- Bottom KPI Telemetry Bar -->
+    <footer class="app-bottom">
+      
+      <div class="kpi-card success">
+        <div class="kpi-title">Flow Admission Ratio (FAR %)</div>
+        <div id="farVal" class="kpi-value">100.0%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-title">Peak Transit Buffer (R*)</div>
+        <div id="transitVal" class="kpi-value">15.02 GB</div>
+      </div>
+
+      <div class="kpi-card success">
+        <div class="kpi-title">Source Holding Occupancy (R_src)</div>
+        <div id="sourceVal" class="kpi-value">95.24 GB</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-title">PCE Planning Solve Latency</div>
+        <div id="solveVal" class="kpi-value">251 ms</div>
+      </div>
+
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

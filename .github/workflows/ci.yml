@@ -1,0 +1,390 @@
+name: VortexPCE CI/CD Pipeline
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vortex-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to publish the image-scan SARIF into the Security tab.
+      security-events: write
+
+    # A real PostgreSQL, so the HA layer (fencing, leadership lease, five-moment failover,
+    # lease-safety, shared capacity) is exercised on every PR rather than skipped. Without this the
+    # POSTGRES_URL-gated tests self-skip and a green build could hide a regression in exactly the
+    # code that supports the clustered mode.
+    services:
+      postgres:
+        # Pinned by digest so the HA integration job is reproducible and its base image moves only
+        # through an auditable dependency bump, matching the rest of the pinned actions/images
+        # Tag kept in the comment for readability: postgres:16-alpine.
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+    - name: Check Whitespace Hygiene
+      run: |
+        # Markdown is excluded on purpose: a trailing double-space is a semantic line break.
+        if grep -rn --include='*.java' --include='*.py' --include='*.yml' -e '[[:space:]]$' . \
+             --exclude-dir=.git; then
+          echo "::error::Trailing whitespace detected in the listed files."
+          exit 1
+        fi
+
+    - name: Refuse Committed TLS Private Material
+      run: |
+        tracked=$(git ls-files deploy/certs)
+        if [ -n "$tracked" ]; then
+          echo "::error::Generated TLS material must not be committed: $tracked"
+          exit 1
+        fi
+        if grep -n 'CERT_PASSWORD:-changeit' \
+             deploy/generate-dev-certificates.sh docker-compose.secure.yml; then
+          echo "::error::The secure deployment must not provide a public default password."
+          exit 1
+        fi
+
+    - name: Set up OpenJDK 17
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: '3.10'
+
+    - name: Run Canonical Maven Test Lifecycle
+      # POSTGRES_URL makes the gated HA integration tests run against the service above instead of
+      # skipping. The focused fast suite is unchanged; this only adds the database-backed cases.
+      env:
+        POSTGRES_URL: jdbc:postgresql://localhost:5432/postgres
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+      # Maven Central intermittently rate-limits hosted runners (HTTP 429), and a 429 is cached as a
+      # failed transfer -- so a plain retry hits the poisoned cache and still fails. Retry with
+      # backoff and force updates (-U) so the cached failures are re-attempted, with connection-level
+      # retries inside each run. A brief Central hiccup no longer reds the build; a persistent outage
+      # still fails after the last attempt. Mirrors the interop image build's hardening.
+      run: |
+        for attempt in 1 2 3 4 5; do
+          mvn -B -ntp -U \
+            -Dmaven.wagon.http.retryHandler.count=3 \
+            -Dmaven.wagon.http.retryHandler.requestSentEnabled=true \
+            clean verify && exit 0
+          status=$?
+          if [ "$attempt" = 5 ]; then
+            echo "mvn clean verify failed after $attempt attempts" >&2
+            exit $status
+          fi
+          echo "mvn attempt $attempt failed (exit $status); Maven Central may be rate-limiting, backing off"
+          sleep $((attempt * 20))
+        done
+
+    # Publish the test reports (which now include the PostgreSQL-backed HA cases) so a failure is
+    # inspectable from the run without re-running locally.
+    - name: Publish Test Reports
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: surefire-reports
+        path: target/surefire-reports/
+        retention-days: 30
+
+    - name: Build & Test Python SDK
+      run: |
+        python3 -m pip install --upgrade pip setuptools
+        python3 setup.py build_py
+        python3 -m compileall -q crp_pce
+        python3 -m unittest discover -v
+
+    # Wireshark's PCEP dissector was written from the RFCs with no sight of this code, so it is
+    # the first check in this repository that our wire format matches the standard rather than
+    # matching our own decoder. Enforcing, unlike the PCC fixture, because it works.
+    # Runs after the Maven lifecycle so target/java-pcep-frames.hex exists: the gate then checks
+    # the Java encoder's bytes as well as the Python one's, both against the same referee.
+    - name: Validate the PCEP Wire Format Against Wireshark
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq tshark >/dev/null
+        test -s target/java-pcep-frames.hex \
+          || { echo "::error::Maven did not emit the Java PCEP frames for dissection"; exit 1; }
+        python3 tests/interop/dissect_with_tshark.py
+
+    - name: Verify Version Sources Agree
+      run: |
+        pom_version=$(python3 -c "
+        import re, pathlib
+        text = pathlib.Path('pom.xml').read_text()
+        print(re.search(r'<artifactId>dcn-pce-controller</artifactId>\s*<version>([^<]+)</version>', text).group(1).strip())
+        ")
+        sdk_version=$(python3 setup.py --version)
+        echo "pom.xml: ${pom_version} / setup.py: ${sdk_version}"
+        test "${sdk_version}" = "${pom_version/-SNAPSHOT/.dev0}"
+
+    - name: Build Docker Container Image
+      run: |
+        docker build -t vortex-pce-controller:latest .
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+      with:
+        image: vortex-pce-controller:latest
+        format: spdx-json
+        output-file: vortex-pce-controller.sbom.spdx.json
+        upload-artifact: false
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      with:
+        name: sbom
+        path: vortex-pce-controller.sbom.spdx.json
+        retention-days: 30
+
+    # Two scans with different jobs. This one reports everything CRITICAL/HIGH into the
+    # Security tab for triage and never fails the build.
+    - name: Scan Image for Vulnerabilities
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: vortex-pce-controller:latest
+        format: sarif
+        output: trivy-results.sarif
+        severity: CRITICAL,HIGH
+        exit-code: '0'
+
+    # always() so a later gate failure still publishes the findings, but guarded on the file
+    # existing: when an earlier step fails the scan never runs, and an unguarded always() then
+    # reports a second, misleading failure for a missing artefact.
+    #
+    # continue-on-error for the same reason as the CodeQL upload: this posts to the code scanning
+    # API, which is unavailable while the repository is private, so the upload fails even though
+    # the scan itself succeeded. The enforcing vulnerability gate below is unaffected and still
+    # fails the build on a fixable critical finding.
+    - name: Upload Trivy Results
+      continue-on-error: true
+      uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+      if: always() && hashFiles('trivy-results.sarif') != ''
+      with:
+        sarif_file: trivy-results.sarif
+        category: trivy-image
+
+    - name: Report Critical Vulnerabilities
+      run: |
+        trivy_count=$(python3 -c "
+        import json, pathlib
+        data = json.loads(pathlib.Path('trivy-results.sarif').read_text())
+        print(sum(len(run.get('results', [])) for run in data.get('runs', [])))
+        ")
+        echo "Trivy CRITICAL/HIGH findings: ${trivy_count}"
+        echo "### Image scan: ${trivy_count} CRITICAL/HIGH findings" >> "$GITHUB_STEP_SUMMARY"
+        echo "The enforcing gate below fails on any of these that has an upstream fix." \
+          >> "$GITHUB_STEP_SUMMARY"
+
+    # An exception is only an exception while someone is still willing to argue for it. This
+    # fails once an entry in .trivyignore is past its review date, so a suppression added for
+    # a good reason on one afternoon cannot silence a CVE indefinitely. Run before the gate it
+    # protects, because an expired entry would otherwise let that gate pass.
+    - name: Enforce Vulnerability Exception Review Dates
+      run: python3 tools/check_vulnerability_exceptions.py .trivyignore
+
+    # This one enforces. A finding with a fix available is actionable here -- a rebuild picks
+    # it up -- so it fails the build. A CVE with no upstream fix cannot be actioned by this
+    # repository, and failing on it would only train reviewers to ignore a permanently red
+    # pipeline, so ignore-unfixed stays.
+    #
+    # HIGH was previously reported but not enforced, which made "reported for triage" the
+    # whole of the response to a fixable high-severity finding in a shipped image. Accepted
+    # exceptions live in .trivyignore with a reason and a review date, and the step above
+    # stops those from becoming permanent.
+    - name: Enforce Fixable Critical and High Vulnerabilities
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: vortex-pce-controller:latest
+        format: table
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        trivyignores: .trivyignore
+        exit-code: '1'
+
+    - name: Test Docker Compose Deployment
+      env:
+        VORTEX_API_KEY: ci-only-secret
+      run: |
+        trap 'docker compose down --volumes' EXIT
+        docker compose up -d --build vortex-controller
+        for attempt in $(seq 1 30); do
+          curl --fail --silent http://localhost:8080/readyz >/dev/null && break
+          if [ "$attempt" -eq 30 ]; then
+            docker compose logs
+            exit 1
+          fi
+          sleep 1
+        done
+        unauthorized_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          -H 'Content-Type: application/json' --data '[]' \
+          http://localhost:8080/api/v1/solve)
+        test "$unauthorized_status" = "401"
+        config_unauthorized_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          http://localhost:8080/api/v1/config)
+        test "$config_unauthorized_status" = "401"
+        curl --silent --fail -H "X-API-Key: ${VORTEX_API_KEY}" \
+          http://localhost:8080/api/v1/config -o /tmp/vortex-ci-config.json
+        python3 - <<'PY'
+        import json
+        with open("/tmp/vortex-ci-config.json") as handle:
+            payload = json.load(handle)
+        effective = payload["effectiveConfiguration"]
+        # No policy is set, and the built-in OARNet topology is R_DET (periodic intermittent
+        # links), so the controller must resolve the contact-aware regime default.
+        assert effective["routeGenerationPolicy"] == "BOUNDED_CGR", effective
+        assert payload["activeTopology"]["contactRegime"] == "R_DET", payload
+        assert effective["rateAssignmentPolicy"] == "DATA_FLOW_EQUILIBRIUM", effective
+        assert effective["taskSelectionPolicy"] == "LWEEF", effective
+        assert effective["statePath"] == "/var/lib/vortex/state.json", effective
+        assert payload["activeTopology"]["nodeCount"] > 0, payload
+        PY
+        cat >/tmp/vortex-ci-request.json <<'JSON'
+        [{
+          "taskId": "CI-TASK-1",
+          "sourceNodeId": "OSU",
+          "destinationNodeId": "OU",
+          "originationTimeSec": 0,
+          "deadlineSec": 10000,
+          "taskSizeBytes": 1048576,
+          "priority": 1
+        }]
+        JSON
+        first_status=$(curl --silent --output /tmp/vortex-ci-response.json --write-out '%{http_code}' \
+          -H "X-API-Key: ${VORTEX_API_KEY}" -H 'Content-Type: application/json' \
+          --data-binary @/tmp/vortex-ci-request.json http://localhost:8080/api/v1/solve)
+        test "$first_status" = "200"
+        duplicate_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          -H "X-API-Key: ${VORTEX_API_KEY}" -H 'Content-Type: application/json' \
+          --data-binary @/tmp/vortex-ci-request.json http://localhost:8080/api/v1/solve)
+        test "$duplicate_status" = "409"
+        cancel_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          --request DELETE -H "X-API-Key: ${VORTEX_API_KEY}" \
+          http://localhost:8080/api/v1/tasks/CI-TASK-1)
+        test "$cancel_status" = "200"
+        readmit_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          -H "X-API-Key: ${VORTEX_API_KEY}" -H 'Content-Type: application/json' \
+          --data-binary @/tmp/vortex-ci-request.json http://localhost:8080/api/v1/solve)
+        test "$readmit_status" = "200"
+        # Metrics carry ledger depth and admission state, so they must not be world-readable.
+        metrics_unauthorized=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          http://localhost:8080/metrics)
+        test "$metrics_unauthorized" = "401"
+        curl --silent -H "X-API-Key: ${VORTEX_API_KEY}" http://localhost:8080/metrics \
+          >/tmp/vortex-ci-metrics.txt
+        grep -q '^# TYPE vortex_solve_duration_seconds histogram$' /tmp/vortex-ci-metrics.txt
+        grep -q '^vortex_solve_requests_total{outcome="success"} [1-9]' /tmp/vortex-ci-metrics.txt
+        grep -q '^vortex_workloads_committed_total [1-9]' /tmp/vortex-ci-metrics.txt
+        grep -q '^vortex_link_reservations [0-9]' /tmp/vortex-ci-metrics.txt
+        docker compose restart vortex-controller
+        for attempt in $(seq 1 30); do
+          curl --fail --silent http://localhost:8080/readyz >/dev/null && break
+          if [ "$attempt" -eq 30 ]; then
+            docker compose logs
+            exit 1
+          fi
+          sleep 1
+        done
+        restored_duplicate_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          -H "X-API-Key: ${VORTEX_API_KEY}" -H 'Content-Type: application/json' \
+          --data-binary @/tmp/vortex-ci-request.json http://localhost:8080/api/v1/solve)
+        test "$restored_duplicate_status" = "409"
+        # Compose runs VORTEX_PCEP_LISTENER=JAVA, so this handshakes against the Java listener.
+        # It used to reach the Python server by default, which is what DISABLED used to start.
+        python3 - <<'PY'
+        import socket
+        from crp_pce.pcep import PCEPMessage, PCEPStatefulServer, MSG_TYPE_KEEPALIVE, MSG_TYPE_OPEN
+
+        with socket.create_connection(("127.0.0.1", 4189), timeout=5) as peer:
+            header, _ = PCEPStatefulServer._recv_frame(peer)
+            assert header["message_type"] == MSG_TYPE_OPEN
+            peer.sendall(PCEPMessage.encode_binary_open())
+            header, _ = PCEPStatefulServer._recv_frame(peer)
+            assert header["message_type"] == MSG_TYPE_KEEPALIVE
+            peer.sendall(PCEPMessage.encode_binary_keepalive())
+        PY
+
+    - name: Verify Invalid Operator Configuration Fails Startup
+      run: |
+        # An unrecognized policy name must abort startup rather than silently defaulting.
+        if docker run --rm \
+          -e VORTEX_API_KEY=ci-only-secret \
+          -e VORTEX_ROUTE_GEN_POLICY=NOT_A_REAL_POLICY \
+          --entrypoint java vortex-pce-controller:latest \
+          -cp '/app/classes:/app/lib/*' net.dcn.pce.Main --server > /tmp/bad-policy.log 2>&1; then
+          echo "::error::Controller started with an invalid VORTEX_ROUTE_GEN_POLICY."
+          exit 1
+        fi
+        grep -q 'Unsupported VORTEX_ROUTE_GEN_POLICY' /tmp/bad-policy.log
+
+        # BOUNDED_CGR is contact-aware and must abort against a non-R_DET topology, rather
+        # than starting and reporting every workload as unadmitted.
+        mkdir -p /tmp/vortex-cfg
+        cat >/tmp/vortex-cfg/static-topology.json <<'JSON'
+        {
+          "regime": "R_STATIC",
+          "nodes": [
+            {"nodeId":"A","serviceRateBps":1.0e9,"reservoirCapacityBytes":1.0e9},
+            {"nodeId":"B","serviceRateBps":1.0e9,"reservoirCapacityBytes":1.0e9}
+          ],
+          "links": [
+            {"linkId":"A-B","sourceNodeId":"A","destinationNodeId":"B",
+             "baseBandwidthBps":1.0e8,"propagationDelaySec":0.001,
+             "activeContactSec":30,"inactivePreSec":0,"inactivePostSec":0}
+          ]
+        }
+        JSON
+        if docker run --rm \
+          -e VORTEX_API_KEY=ci-only-secret \
+          -e VORTEX_ROUTE_GEN_POLICY=BOUNDED_CGR \
+          -e VORTEX_TOPOLOGY_FILE=/cfg/static-topology.json \
+          -v /tmp/vortex-cfg:/cfg:ro \
+          --entrypoint java vortex-pce-controller:latest \
+          -cp '/app/classes:/app/lib/*' net.dcn.pce.Main --server > /tmp/bad-regime.log 2>&1; then
+          echo "::error::Controller started with BOUNDED_CGR against an R_STATIC topology."
+          exit 1
+        fi
+        grep -q 'not supported under contact regime R_STATIC' /tmp/bad-regime.log
+
+        # A missing topology file must abort startup rather than silently using the built-in one.
+        if docker run --rm \
+          -e VORTEX_API_KEY=ci-only-secret \
+          -e VORTEX_TOPOLOGY_FILE=/cfg/does-not-exist.json \
+          -v /tmp/vortex-cfg:/cfg:ro \
+          --entrypoint java vortex-pce-controller:latest \
+          -cp '/app/classes:/app/lib/*' net.dcn.pce.Main --server > /tmp/missing-topo.log 2>&1; then
+          echo "::error::Controller started with a missing VORTEX_TOPOLOGY_FILE."
+          exit 1
+        fi
+        grep -q 'is not a readable file' /tmp/missing-topo.log

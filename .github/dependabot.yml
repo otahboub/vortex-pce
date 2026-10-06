@@ -1,0 +1,52 @@
+version: 2
+
+updates:
+  # Java runtime and test dependencies. The tree is small and pinned, so a weekly
+  # cadence with grouped minor/patch bumps keeps review load proportionate.
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - java
+    groups:
+      java-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - python
+
+  # Workflow actions are pinned by major tag; this surfaces the majors.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+
+  # The runtime base image is pinned by digest for reproducibility, which means
+  # security rebases arrive only through this updater.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker

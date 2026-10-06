@@ -1,0 +1,8 @@
+zebra=yes
+staticd=yes
+pathd=yes
+bgpd=no
+ospfd=no
+pathd_options="-A 127.0.0.1 -M pathd_pcep"
+zebra_options="-A 127.0.0.1 -s 90000000"
+staticd_options="-A 127.0.0.1"

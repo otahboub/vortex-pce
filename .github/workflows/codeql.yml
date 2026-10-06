@@ -1,0 +1,102 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Weekly scan so newly published queries reach the default branch even when
+    # the repository is quiet.
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vortex-codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: python
+            build-mode: none
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up OpenJDK 17
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      # Tests are skipped here: CodeQL only needs the main sources compiled, and
+      # the canonical test lifecycle already runs in the CI workflow.
+      - name: Build Java sources
+        if: matrix.language == 'java-kotlin'
+        run: mvn -B -DskipTests compile
+
+      # Analysis and upload are separate steps because they fail for unrelated reasons and
+      # only one of them is tolerable. A query or build failure means the scan did not happen
+      # and must fail the job. The upload posts to the code scanning API, which is a GitHub
+      # Advanced Security feature and is unavailable while this repository is private, so it
+      # fails even when the analysis succeeded.
+      #
+      # They used to be one step under continue-on-error, which meant an analysis that failed
+      # outright passed silently -- a green tick for a scan that never ran.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          category: /language:${{ matrix.language }}
+          upload: never
+          output: codeql-results
+
+      # Analysis success only means the queries ran. It says nothing about what they found, and
+      # this private repository cannot rely on the code-scanning API to enforce those results.
+      # Read the SARIF directly before the best-effort upload so findings fail the job everywhere.
+      - name: Enforce zero CodeQL findings
+        run: python3 tools/check_codeql_sarif.py codeql-results
+
+      # Remove continue-on-error when the repository becomes public again, or when Advanced
+      # Security is enabled for it. Findings are in the analysis step's log meanwhile.
+      - name: Upload CodeQL results
+        continue-on-error: true
+        if: always() && hashFiles('codeql-results/*.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          sarif_file: codeql-results
+          category: /language:${{ matrix.language }}
+
+      # So the findings are readable without the code scanning API: without this, a private
+      # repository has no route to them at all once the upload is tolerated.
+      - name: Upload CodeQL results as an artifact
+        if: always() && hashFiles('codeql-results/*.sarif') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: codeql-${{ matrix.language }}
+          path: codeql-results
+          retention-days: 30

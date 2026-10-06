@@ -1,0 +1,87 @@
+services:
+  # 1. ONOS SDN Controller Container
+  onos:
+    profiles: ["onos-lab"]
+    image: onosproject/onos:2.7.0
+    container_name: onos_controller
+    ports:
+      - "127.0.0.1:8181:8181"   # ONOS GUI & REST API (lab profile only)
+      - "127.0.0.1:8101:8101"   # ONOS Karaf SSH CLI (lab profile only)
+      - "127.0.0.1:6653:6653"   # OpenFlow Protocol Port (lab profile only)
+    environment:
+      - ONOS_APPS=drivers,openflow,pcep,fwd,gui
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+
+  # 2. Hardened VortexPCE Controller & Testbed Container
+  # Renamed from dcn-mininet-testbed: neither the image nor the entrypoint runs Mininet, and
+  # the old name implied a data-plane testbed that does not exist.
+  vortex-controller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vortex_controller
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8080:8080"   # Override explicitly for remote deployment
+      - "127.0.0.1:4189:4189"   # Override explicitly for remote PCCs
+    environment:
+      # At least one credential mode must be non-empty. The controller validates that invariant at
+      # startup; Compose passes both so principal-only deployments and overlap rotations work.
+      VORTEX_API_KEY: ${VORTEX_API_KEY:-}
+      VORTEX_API_PRINCIPALS: ${VORTEX_API_PRINCIPALS:-}
+      VORTEX_STATE_PATH: /var/lib/vortex/state.json
+      # Named rather than inherited. The listener default is DISABLED, which opens no southbound
+      # port -- and this file publishes 4189 and health-checks it, so the reference deployment has
+      # to say which implementation owns it. JAVA is the one wired to the intent ledger, PCRpt
+      # decoding and reconciliation; PYTHON encodes frames but processes no reports.
+      VORTEX_PCEP_LISTENER: ${VORTEX_PCEP_LISTENER:-JAVA}
+      # The Java listener binds loopback by default, which inside a container means nothing
+      # outside it can connect. Binding all container interfaces is safe here because the port
+      # above is published to 127.0.0.1 on the host, not to the world.
+      VORTEX_PCEP_BIND: ${VORTEX_PCEP_BIND:-0.0.0.0}
+      # Operator configuration. Unset values use the defaults below; an unrecognized value or a
+      # policy incompatible with the topology's contact regime fails startup rather than
+      # reverting to a default. See "Operator Configuration" in README.md.
+      VORTEX_TASK_SELECT_POLICY: ${VORTEX_TASK_SELECT_POLICY:-LWEEF}
+      # Empty means unset: the controller picks the topology regime's default (BOUNDED_CGR under
+      # R_DET/R_STOCH, BFS_MIN_HOP under R_STATIC). Pinning one here would override that for
+      # every regime.
+      VORTEX_ROUTE_GEN_POLICY: ${VORTEX_ROUTE_GEN_POLICY:-}
+      VORTEX_PATH_SELECT_POLICY: ${VORTEX_PATH_SELECT_POLICY:-EAP}
+      VORTEX_RATE_ASSIGN_POLICY: ${VORTEX_RATE_ASSIGN_POLICY:-DATA_FLOW_EQUILIBRIUM}
+      # Bounds a single solve. Planning is single-flight, so an unbounded solve removes the
+      # controller from service rather than merely slowing it; on expiry the request returns 504
+      # and the ledgers roll back. Set 0 for unbounded benchmark runs.
+      VORTEX_SOLVE_TIMEOUT_SEC: ${VORTEX_SOLVE_TIMEOUT_SEC:-60}
+      # BOUNDED_CGR requires an R_DET topology; mount one and point this at it.
+      # VORTEX_TOPOLOGY_FILE: /var/lib/vortex/topology.json
+    volumes:
+      - vortex-state:/var/lib/vortex
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    healthcheck:
+      # Same conditional probe as the image: this file selects JAVA above, but overriding the
+      # listener to DISABLED must not make a correctly configured deployment report unhealthy.
+      test: ["CMD", "python3", "-c", "import os,socket,urllib.request; urllib.request.urlopen('http://localhost:8080/livez',timeout=2).read(); os.environ.get('VORTEX_PCEP_LISTENER','DISABLED')=='DISABLED' or socket.create_connection(('127.0.0.1',4189),timeout=2).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+          pids: 256
+
+volumes:
+  vortex-state:

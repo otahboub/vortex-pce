@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+target
+bin
+*.log
+*.md
+__pycache__
+*.pyc

@@ -1,0 +1,40 @@
+{
+  "hosts": {
+    "trigger": "ubuntu@pce.example.net",
+    "probe": "ubuntu@head.example.net",
+    "oracle": "ubuntu@tail.example.net"
+  },
+  "ssh_options": ["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"],
+  "max_clock_offset_ms": 10,
+  "max_packet_loss_percent": 5,
+  "warmup_sec": 2,
+  "preflight": [
+    {"host": "probe", "command": "command -v ping >/dev/null"},
+    {"host": "oracle", "command": "test -r /tmp/mpls-count"}
+  ],
+  "probe": {
+    "target": "10.88.0.1",
+    "interval_sec": 0.05,
+    "duration_sec": 30
+  },
+  "actions": [
+    {
+      "name": "install",
+      "command": "curl -fsS -X POST http://127.0.0.1:8080/api/v1/solve -H 'X-API-Key: fwd' -H 'Content-Type: application/json' --data-binary @/opt/a8/task.json",
+      "oracle_command": "test $(cat /tmp/mpls-count) -gt 0 && echo MPLS_ACTIVE || echo MPLS_INACTIVE",
+      "oracle_regex": "MPLS_ACTIVE",
+      "oracle_present": true,
+      "oracle_timeout_sec": 20,
+      "poll_interval_sec": 0.05
+    },
+    {
+      "name": "remove",
+      "command": "curl -fsS -X DELETE http://127.0.0.1:8080/api/v1/tasks/FWD1 -H 'X-API-Key: fwd'",
+      "oracle_command": "test $(cat /tmp/mpls-count) -gt 0 && echo MPLS_ACTIVE || echo MPLS_INACTIVE",
+      "oracle_regex": "MPLS_ACTIVE",
+      "oracle_present": false,
+      "oracle_timeout_sec": 20,
+      "poll_interval_sec": 0.05
+    }
+  ]
+}

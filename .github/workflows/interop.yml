@@ -1,0 +1,401 @@
+name: PCC Interoperability
+
+# An enforcing gate. It was a diagnostic probe for as long as no session could be established;
+# a real FRRouting pathd now completes the PCEP handshake and state synchronisation against the
+# Java listener, so the behaviour is one this project can be held to rather than one it reports on.
+#
+# It is a separate workflow from CI on purpose. It pulls a third-party image from Docker Hub, so
+# an outage there fails this and nothing else, and a red run here means "we do not know whether we
+# still interoperate" rather than "the change is broken".
+#
+# What it proves: that a router-grade PCEP implementation written by other people accepts our
+# OPEN, keeps the session up, and that we correctly read what it sends back. What it does not
+# prove: that an LSP we initiate is programmed into a forwarding plane. Nothing here carries
+# traffic.
+on:
+  workflow_dispatch:
+    inputs:
+      frr_image:
+        description: 'FRR image to run as the PCC (overrides the pinned digest)'
+        required: false
+        default: ''
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, 'interop/**' ]
+
+env:
+  # Official FRR 10.7.0, pinned by digest so the gate cannot change meaning because an upstream
+  # tag moved. A red run should mean our interoperability changed, not that FRR shipped a new
+  # image overnight.
+  FRR_IMAGE: ${{ inputs.frr_image || 'quay.io/frrouting/frr@sha256:65e5967b922572c0565d968388fb06af69d7e9b3b3eea40ad7e3810687667f68' }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vortex-interop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frr-pcc:
+    name: FRRouting pathd as an independent PCC
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Build the controller image
+        run: docker build -t vortex-interop:pce .
+
+      - name: Start the controller and wait for it to listen
+        run: |
+          set -euo pipefail
+          docker network create --subnet 172.29.0.0/16 vortex-interop
+
+          # VORTEX_PCEP_LISTENER=JAVA is the point of the run. The Java listener is the one that
+          # owns the intent ledger, the installation state machine and removal dispatch, so it is
+          # the one whose behaviour against a real router needs proving. The Python listener would
+          # exercise none of that.
+          # AUTO_INSTALL and an addressed topology are set because the dispatch path is the
+          # newest and least-proven code here, and it is the part a hand-written PCC cannot
+          # falsify. Running it without them once already cost real debugging: intents were not
+          # created at all in the default in-memory configuration, and nothing in CI noticed.
+          docker run -d --name vortex-pce --network vortex-interop --ip 172.29.0.2 \
+            -e VORTEX_API_KEY=interop \
+            -e VORTEX_PCEP_LISTENER=JAVA \
+            -e VORTEX_PCEP_BIND=0.0.0.0 \
+            -e VORTEX_PCEP_AUTO_INSTALL=SINGLE_PCC \
+            -e VORTEX_TOPOLOGY_FILE=/topo/topology.json \
+            -v "$PWD/tests/interop":/topo:ro \
+            vortex-interop:pce
+
+          # Failing here rather than carrying on matters: a controller that never opened 4189
+          # produces exactly the same "Session Status DISCONNECTED" as a PCC that declined to
+          # dial, and the gate would blame pathd for our own start-up.
+          listening=false
+          for attempt in $(seq 1 30); do
+            if docker exec vortex-pce sh -c \
+              'python3 -c "import socket,sys; s=socket.socket(); sys.exit(s.connect_ex((\"127.0.0.1\",4189)))"'; then
+              listening=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$listening" != true ]; then
+            echo "::error::The controller never opened port 4189; this run says nothing about pathd."
+            docker logs vortex-pce || true
+            exit 1
+          fi
+
+      # Started only once the PCE is accepting connections. Starting both together was a race the
+      # emulated local run always won and a native runner lost: pathd came up first, dialled a
+      # closed port, and sat on its retry timer while the gate asserted on a session that was
+      # correctly reported DISCONNECTED. Ordering it this way makes the run deterministic rather
+      # than dependent on how fast FRR boots relative to a JVM.
+      - name: Start the FRR PCC and wait for synchronisation
+        run: |
+          set -euo pipefail
+          docker run -d --name interop-pcc --network vortex-interop --ip 172.29.0.3 --privileged \
+            -v "$PWD/tests/interop/frr/frr.conf":/etc/frr/frr.conf:ro \
+            -v "$PWD/tests/interop/frr/vtysh.conf":/etc/frr/vtysh.conf:ro \
+            "$FRR_IMAGE" sleep infinity
+
+          # The image's default entrypoint asks watchfrr to start zebra, staticd and pathd at once.
+          # pathd performs a blocking label-manager connection during startup, so on a slow runner
+          # it can hold the shared "restart all" helper open before zebra has exposed zserv.api.
+          # watchfrr eventually kills that helper, leaving pathd alive but permanently uninitialised.
+          # Start the two daemons this fixture needs in dependency order instead.
+          wait_for_socket() {
+            socket="$1"
+            for attempt in $(seq 1 30); do
+              if docker exec interop-pcc test -S "$socket"; then
+                return 0
+              fi
+              sleep 2
+            done
+            return 1
+          }
+
+          frr_diagnosis() {
+            echo "--- zebra ---"
+            cat /tmp/zebra-start.log 2>/dev/null || true
+            docker exec interop-pcc sh -c 'tail -80 /tmp/zebra.log 2>/dev/null' || true
+            echo "--- pathd ---"
+            cat /tmp/pathd-start.log 2>/dev/null || true
+            docker exec interop-pcc sh -c 'tail -80 /tmp/pathd.log 2>/dev/null' || true
+            echo "--- runtime sockets ---"
+            docker exec interop-pcc sh -c 'ls -l /var/run/frr/ 2>&1' || true
+            echo "--- daemons ---"
+            docker exec interop-pcc sh -c 'ps -eo pid,comm' 2>&1 || true
+            echo "--- kernel MPLS visible (not required by this fixture)? ---"
+            docker exec interop-pcc sh -c 'ls -d /proc/sys/net/mpls 2>&1' || true
+          }
+
+          docker exec interop-pcc sh -c \
+            'touch /tmp/zebra.log /tmp/pathd.log && chown frr:frr /tmp/zebra.log /tmp/pathd.log'
+          if ! docker exec interop-pcc /usr/lib/frr/zebra -d -A 127.0.0.1 -s 90000000 \
+              --limit-fds 1024 --log file:/tmp/zebra.log --log-level info \
+              > /tmp/zebra-start.log 2>&1; then
+            echo "::error::zebra failed during startup."
+            frr_diagnosis
+            exit 1
+          fi
+          if ! wait_for_socket /var/run/frr/zserv.api; then
+            echo "::error::zebra never exposed its API socket."
+            frr_diagnosis
+            exit 1
+          fi
+
+          if ! docker exec interop-pcc /usr/lib/frr/pathd -d -A 127.0.0.1 -M pathd_pcep \
+              --limit-fds 1024 --log file:/tmp/pathd.log --log-level info \
+              > /tmp/pathd-start.log 2>&1; then
+            echo "::error::pathd failed during startup."
+            frr_diagnosis
+            exit 1
+          fi
+          if ! wait_for_socket /var/run/frr/pathd.vty; then
+            echo "::error::pathd never exposed its VTY socket."
+            frr_diagnosis
+            exit 1
+          fi
+
+          # Load the integrated configuration only after both daemons can answer. Keep the exact
+          # loader output because vtysh can report a rejected command without making pathd exit.
+          docker exec interop-pcc vtysh -b 2>&1 | tee /tmp/frr-config.log
+          if grep -iE \
+              "Unknown command|processing failure|Configuration failed|failed to allocate resource" \
+              /tmp/frr-config.log; then
+            echo "::error::FRR rejected the PCEP configuration."
+            frr_diagnosis
+            exit 1
+          fi
+
+          synchronised=false
+          for attempt in $(seq 1 60); do
+            if docker logs vortex-pce 2>&1 | grep -q "completed state synchronisation"; then
+              synchronised=true
+              break
+            fi
+            if ! docker exec interop-pcc test -S /var/run/frr/zserv.api \
+                || ! docker exec interop-pcc test -S /var/run/frr/pathd.vty; then
+              echo "::error::An FRR daemon exited while waiting for PCEP synchronisation."
+              frr_diagnosis
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$synchronised" != true ]; then
+            # Not fatal here on purpose: the evidence step runs next and the assertions after it
+            # say which side fell short. This line exists so the log records that the wait ran out
+            # rather than leaving a reader to infer it from a later failure.
+            echo "::warning::No synchronisation after 120s; the assertions below will say why."
+          fi
+
+      - name: Record what was actually run
+        run: |
+          {
+            echo "## PCC interoperability"
+            echo '```'
+            echo "runner:      $(uname -m)"
+            echo "frr image:   $FRR_IMAGE"
+            docker exec interop-pcc sh -c '/usr/lib/frr/pathd -v 2>&1 | head -1' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: FRR must accept the fixture configuration
+        run: |
+          test -f /tmp/frr-config.log
+          if grep -iE \
+              "Unknown command|processing failure|Configuration failed|failed to allocate resource" \
+              /tmp/frr-config.log; then
+            echo "::error::FRR rejected the PCEP configuration, so this run proves nothing about pathd."
+            exit 1
+          fi
+
+      # Collected before anything asserts on it. The previous version asserted first, so a failed
+      # run reported "pathd does not consider the session up" and nothing about why -- which is
+      # less than the diagnostic probe this gate replaced used to say.
+      - name: Collect the evidence
+        run: |
+          docker exec interop-pcc vtysh -c "show sr-te pcep session" 2>&1 \
+            | grep -vi "vtysh.conf" > /tmp/session.txt || true
+          docker logs vortex-pce > /tmp/controller.log 2>&1 || true
+          docker exec interop-pcc sh -c \
+            'tail -1000 /tmp/zebra.log; tail -1000 /tmp/pathd.log' > /tmp/frr.log 2>&1 || true
+
+          # Did pathd ever open a socket to 4189? 105D is 4189 in hex. This is what separates
+          # "declined to dial" from "dialled and the handshake failed", and the two have nothing
+          # in common as causes.
+          docker exec interop-pcc sh -c 'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null' \
+            | grep -i "105D" > /tmp/sock.txt || true
+
+          {
+            echo "### FRR's view of the session"
+            echo '```'
+            cat /tmp/session.txt
+            echo '```'
+            echo "### Did pathd open a socket to 4189?"
+            if [ -s /tmp/sock.txt ]; then
+              echo 'Yes:'
+              echo '```'
+              cat /tmp/sock.txt
+              echo '```'
+            else
+              echo 'No -- pathd never initiated a connection.'
+            fi
+            echo "### pathd's own account"
+            echo '```'
+            # The complete daemon tail, not a pcep-filtered view. Startup failures often match no
+            # protocol keyword, so filtering for "pcep" hides exactly the case worth reading.
+            tail -60 /tmp/frr.log || echo "(nothing logged)"
+            echo '```'
+            echo "### The controller's view"
+            echo '```'
+            grep -iE "PCEP|synchronis|Discard" /tmp/controller.log || echo "(nothing logged)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: FRR must report the session up
+        run: |
+          set -euo pipefail
+          cat /tmp/session.txt
+          # The PCC's own verdict, from an implementation with no sight of this code.
+          grep -q "Session Status UP" /tmp/session.txt \
+            || { echo "::error::pathd does not consider the session up."; exit 1; }
+          grep -q "Stateful PCE" /tmp/session.txt \
+            || { echo "::error::pathd did not classify this PCE as stateful."; exit 1; }
+
+      - name: The controller must have established the session and completed synchronisation
+        run: |
+          set -euo pipefail
+          grep -q "PCEP session established with" /tmp/controller.log \
+            || { echo "::error::The controller never established a session."; exit 1; }
+
+          # RFC 8231 state synchronisation. This is the assertion that would have failed before
+          # the decoder learned to read the end-of-synchronisation marker: pathd sent it, the
+          # decoder rejected it as a nameless LSP object, and reconciliation -- which only runs
+          # once synchronisation is complete -- could never be reached.
+          grep -q "completed state synchronisation" /tmp/controller.log \
+            || { echo "::error::The PCC's state synchronisation never completed."; exit 1; }
+
+          # A discarded report means a real PCC sent something this decoder could not read. It is
+          # not fatal to the session, which is exactly why it has to fail the gate: it would
+          # otherwise sit in the log while the run went green.
+          if grep -q "Discarding unreadable report" /tmp/controller.log; then
+            echo "::error::The controller could not read a message a real PCC sent."
+            grep "Discarding unreadable report" /tmp/controller.log
+            exit 1
+          fi
+
+      # The dispatch path, end to end: the controller encodes a computed schedule, records the
+      # intent before sending, a real router accepts it and creates the LSP. Two things had to be
+      # true for this to work, and each was masking the other. pathd refuses every PCE-initiated
+      # LSP unless pce-initiated is configured, answering 24/1 "unacceptable instantiation
+      # parameters" -- which reads like a complaint about the request rather than a policy that
+      # forbids the whole operation. And with that enabled it still rejects an RSVP-TE prefix ERO,
+      # accepting only an SR-ERO with PATH-SETUP-TYPE. Verified by controlled comparison: the
+      # prefix form is refused where the segment-routed form is accepted.
+      - name: A solve must reach the router as a PCInitiate
+        run: |
+          set -euo pipefail
+          docker exec vortex-pce python3 -c "import json, urllib.request; body = json.dumps([{'taskId': 'GATE1', 'sourceNodeId': 'PCC', 'destinationNodeId': 'EGRESS', 'originationTimeSec': 0, 'deadlineSec': 60, 'taskSizeBytes': 1000000}]).encode(); r = urllib.request.Request('http://127.0.0.1:8080/api/v1/solve', data=body, method='POST', headers={'X-API-Key': 'interop', 'Content-Type': 'application/json'}); print(urllib.request.urlopen(r, timeout=60).read().decode())" > /tmp/solve.json
+          python3 -c "import json; d = json.load(open('/tmp/solve.json')); assert d['committedFlowCount'] == 1, d; print('  admitted', d['committedFlowCount'])"
+          sleep 10
+
+          docker logs vortex-pce > /tmp/controller.log 2>&1
+          grep -q "Install dispatch: GATE1: PCInitiate" /tmp/controller.log || {
+            echo "::error::The controller did not dispatch a PCInitiate for an admitted flow."
+            grep -iE "Install dispatch|Not dispatching" /tmp/controller.log || echo "(no dispatch line at all)"
+            exit 1
+          }
+
+          # The intent must exist and name the session before the frame goes out. This is the
+          # assertion that would have caught intents never being created with in-memory state.
+          docker exec vortex-pce python3 -c "import urllib.request; r = urllib.request.Request('http://127.0.0.1:8080/api/v1/tasks/GATE1', headers={'X-API-Key': 'interop'}); print(urllib.request.urlopen(r, timeout=10).read().decode())" > /tmp/intent.json
+          cat /tmp/intent.json
+          python3 -c "import json; d = json.load(open('/tmp/intent.json')); assert d.get('installationState') == 'INSTALLING', d; assert d.get('pccSession'), d; print('  intent', d['installationState'], 'on', d['pccSession'])"
+
+          # The router's own counter, not our log: it received the frame.
+          docker exec interop-pcc vtysh -c "show sr-te pcep session" 2>&1 > /tmp/pcep.txt
+          grep -E "Message Initiate:" /tmp/pcep.txt || true
+          # Kept to one line: a multi-line python -c inside a YAML block scalar arrives indented,
+          # which python reads as an IndentationError rather than as a script.
+          python3 -c "import re, sys; text = open('/tmp/pcep.txt').read(); m = re.search(r'Message Initiate:\s+(\d+)\s+(\d+)', text); sys.exit('pathd did not receive a PCInitiate') if not m or int(m.group(2)) < 1 else print('  pathd received', m.group(2), 'PCInitiate(s)')"
+
+      - name: The router must accept the request and create the LSP
+        run: |
+          set -euo pipefail
+          docker exec interop-pcc vtysh -c "show sr-te pcep session" 2>&1 > /tmp/pcep2.txt
+          docker exec interop-pcc vtysh -c "show sr-te policy detail" 2>&1 | grep -vi "vtysh.conf" > /tmp/policy.txt
+          cat /tmp/policy.txt
+
+          # No PCEP error: the router did not refuse the request.
+          python3 -c "import re, sys; t = open('/tmp/pcep2.txt').read(); m = re.search(r'Message Error:\s+(\d+)\s+(\d+)', t); sys.exit('pathd answered our PCInitiate with a PCEP error') if m and int(m.group(1)) > 0 else print('  no PCEP error from the router')"
+
+          # And the LSP exists, created by us over PCEP rather than configured locally.
+          grep -q "vortex-GATE1" /tmp/policy.txt || {
+            echo "::error::The router did not create the LSP this controller initiated."
+            exit 1
+          }
+          grep -q "Protocol-Origin: PCEP" /tmp/policy.txt || {
+            echo "::error::The LSP exists but was not attributed to PCEP."
+            exit 1
+          }
+          echo "  router created vortex-GATE1 with Protocol-Origin PCEP"
+
+          {
+            echo "### The router's answer to our PCInitiate"
+            echo '```'
+            grep -E "Message (Initiate|Error|Report):" /tmp/pcep2.txt || true
+            grep -E "Name:|Protocol-Origin|Status" /tmp/policy.txt || true
+            echo '```'
+            echo "The LSP is created and attributed to PCEP. Its operational state stays DOWN in"
+            echo "this fixture because nothing behind pathd forwards traffic, so the controller"
+            echo "correctly holds the intent short of INSTALLED rather than claiming an LSP is"
+            echo "carrying traffic when it is not."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: The session must be visible to an operator
+        run: |
+          set -euo pipefail
+          # Kept to a single line: a multi-line python -c inside a YAML block scalar arrives
+          # indented, which python reads as an IndentationError rather than as a script.
+          docker exec vortex-pce python3 -c "import urllib.request; r = urllib.request.Request('http://127.0.0.1:8080/metrics', headers={'X-API-Key': 'interop'}); print(urllib.request.urlopen(r).read().decode())" > /tmp/metrics.txt
+          grep -qx "vortex_pcc_sessions_established 1" /tmp/metrics.txt || {
+            echo "::error::The established session is not visible on /metrics."
+            grep pcc_sessions /tmp/metrics.txt || echo "(no session series at all)"
+            exit 1
+          }
+
+      - name: Collect logs
+        if: always()
+        run: |
+          docker exec interop-pcc sh -c \
+            'cat /tmp/zebra.log /tmp/pathd.log 2>/dev/null' > /tmp/frr.log || true
+          docker logs interop-pcc > /tmp/frr-container.log 2>&1 || true
+          docker logs vortex-pce > /tmp/controller.log 2>&1 || true
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: interop-logs
+          path: |
+            /tmp/frr.log
+            /tmp/frr-container.log
+            /tmp/frr-config.log
+            /tmp/zebra-start.log
+            /tmp/pathd-start.log
+            /tmp/session.txt
+            /tmp/sock.txt
+            /tmp/controller.log
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f interop-pcc vortex-pce || true
+          docker network rm vortex-interop || true
