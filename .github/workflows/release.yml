@@ -138,7 +138,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          provenance: true
+          # The default docker driver cannot attach BuildKit attestations ("Attestation is not
+          # supported for the docker driver"), and switching to a container driver would lose the
+          # shared daemon cache that makes this push publish exactly the image the gate cleared.
+          # Provenance is not lost: "Attest Build Provenance" below signs it for this digest and
+          # pushes it to the registry.
+          provenance: false
 
       - name: Generate Release SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
