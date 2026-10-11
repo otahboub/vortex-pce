@@ -1,0 +1,61 @@
+load,seed,offered,ceiling,arm,delivered,share_of_ceiling_pct,critical_on_time_pct,on_time_pct,refusals,wall_s
+0.5,0,200,197,ion,155,78.7,65.0,77.5,,1768
+0.5,0,200,197,odl,46,23.4,5.0,23.0,"{""checked_skips"": 2062, ""graph_loads"": 2637, ""mismatches"": 0, ""paths"": 414, ""requests"": 2476, ""skipped_no_path"": 201908, ""snapshots"": 2638}",56
+0.5,0,200,197,vortex-fcfs:1.0,190,96.4,75.0,95.0,"{""NO_CANDIDATE_ROUTE"": 4, ""NO_PATH_SELECTED"": 6, ""replay_mismatches"": 0}",44
+0.5,0,200,197,vortex-isolated:1.0,105,53.3,80.0,52.5,"{""unrouted_alone"": 3}",4
+0.5,0,200,197,vortex:0.9,137,69.5,75.0,68.5,"{""NO_CANDIDATE_ROUTE"": 3, ""NO_FEASIBLE_RATE"": 57, ""NO_PATH_SELECTED"": 3}",18
+0.5,0,200,197,vortex:1.0,189,95.9,85.0,94.5,"{""NO_CANDIDATE_ROUTE"": 3, ""NO_PATH_SELECTED"": 8}",39
+0.5,1,200,200,ion,150,75.0,70.0,75.0,,2271
+0.5,1,200,200,odl,45,22.5,25.0,22.5,"{""checked_skips"": 2106, ""graph_loads"": 2632, ""mismatches"": 0, ""paths"": 397, ""requests"": 2503, ""skipped_no_path"": 206243, ""snapshots"": 2634}",54
+0.5,1,200,200,vortex-fcfs:1.0,194,97.0,85.0,97.0,"{""NO_CANDIDATE_ROUTE"": 2, ""NO_PATH_SELECTED"": 4, ""replay_mismatches"": 0}",28
+0.5,1,200,200,vortex-isolated:1.0,101,50.5,85.0,50.5,"{""unrouted_alone"": 0}",4
+0.5,1,200,200,vortex:0.9,160,80.0,70.0,80.0,"{""NO_FEASIBLE_RATE"": 37, ""NO_PATH_SELECTED"": 3}",10
+0.5,1,200,200,vortex:1.0,193,96.5,95.0,96.5,"{""NO_PATH_SELECTED"": 7}",32
+0.5,2,200,198,ion,159,80.3,75.0,79.5,,3540
+0.5,2,200,198,odl,47,23.7,15.0,23.5,"{""checked_skips"": 2066, ""graph_loads"": 2634, ""mismatches"": 0, ""paths"": 418, ""requests"": 2484, ""skipped_no_path"": 202537, ""snapshots"": 2641}",54
+0.5,2,200,198,vortex-fcfs:1.0,194,98.0,85.0,97.0,"{""NO_CANDIDATE_ROUTE"": 2, ""NO_PATH_SELECTED"": 4, ""replay_mismatches"": 0}",19
+0.5,2,200,198,vortex-isolated:1.0,116,58.6,80.0,58.0,"{""unrouted_alone"": 2}",4
+0.5,2,200,198,vortex:0.9,145,73.2,80.0,72.5,"{""NO_CANDIDATE_ROUTE"": 2, ""NO_FEASIBLE_RATE"": 52, ""NO_PATH_SELECTED"": 1}",12
+0.5,2,200,198,vortex:1.0,196,99.0,90.0,98.0,"{""NO_CANDIDATE_ROUTE"": 2, ""NO_PATH_SELECTED"": 2}",23
+0.5,3,200,199,ion,155,77.9,75.0,77.5,,1771
+0.5,3,200,199,odl,47,23.6,15.0,23.5,"{""checked_skips"": 2108, ""graph_loads"": 2634, ""mismatches"": 0, ""paths"": 478, ""requests"": 2586, ""skipped_no_path"": 206607, ""snapshots"": 2641}",55
+0.5,3,200,199,vortex-fcfs:1.0,194,97.5,85.0,97.0,"{""NO_CANDIDATE_ROUTE"": 2, ""NO_PATH_SELECTED"": 4, ""replay_mismatches"": 0}",2484
+0.5,3,200,199,vortex-isolated:1.0,112,56.3,80.0,56.0,"{""unrouted_alone"": 2}",4
+0.5,3,200,199,vortex:0.9,147,73.9,90.0,73.5,"{""NO_CANDIDATE_ROUTE"": 1, ""NO_FEASIBLE_RATE"": 50, ""NO_PATH_SELECTED"": 2}",13
+0.5,3,200,199,vortex:1.0,191,96.0,90.0,95.5,"{""NO_CANDIDATE_ROUTE"": 1, ""NO_PATH_SELECTED"": 8}",35
+0.5,4,200,200,ion,176,88.0,80.0,88.0,,1772
+0.5,4,200,200,odl,47,23.5,25.0,23.5,"{""checked_skips"": 2073, ""graph_loads"": 2635, ""mismatches"": 0, ""paths"": 352, ""requests"": 2425, ""skipped_no_path"": 203326, ""snapshots"": 2639}",57
+0.5,4,200,200,vortex-fcfs:1.0,197,98.5,95.0,98.5,"{""NO_PATH_SELECTED"": 3, ""replay_mismatches"": 0}",21
+0.5,4,200,200,vortex-isolated:1.0,117,58.5,90.0,58.5,"{""unrouted_alone"": 1}",4
+0.5,4,200,200,vortex:0.9,157,78.5,85.0,78.5,"{""NO_FEASIBLE_RATE"": 40, ""NO_PATH_SELECTED"": 3}",10
+0.5,4,200,200,vortex:1.0,197,98.5,95.0,98.5,"{""NO_PATH_SELECTED"": 3}",26
+1.0,0,400,394,ion,138,35.0,77.5,34.5,,3542
+1.0,0,400,394,odl,78,19.8,5.0,19.5,"{""checked_skips"": 4372, ""graph_loads"": 2640, ""mismatches"": 0, ""paths"": 1426, ""requests"": 5798, ""skipped_no_path"": 432769, ""snapshots"": 2641}",57
+1.0,0,400,394,vortex-fcfs:1.0,352,89.3,22.5,88.0,"{""NO_CANDIDATE_ROUTE"": 41, ""NO_PATH_SELECTED"": 7, ""replay_mismatches"": 0}",430
+1.0,0,400,394,vortex-isolated:1.0,150,38.1,72.5,37.5,"{""unrouted_alone"": 6}",6
+1.0,0,400,394,vortex:0.9,201,51.0,77.5,50.2,"{""NO_CANDIDATE_ROUTE"": 5, ""NO_FEASIBLE_RATE"": 174, ""NO_PATH_SELECTED"": 20}",223
+1.0,0,400,394,vortex:1.0,345,87.6,85.0,86.2,"{""NO_CANDIDATE_ROUTE"": 29, ""NO_PATH_SELECTED"": 26}",5248
+1.0,1,400,399,ion,125,31.3,75.0,31.2,,5298
+1.0,1,400,399,odl,77,19.3,7.5,19.2,"{""checked_skips"": 4346, ""graph_loads"": 2627, ""mismatches"": 0, ""paths"": 1200, ""requests"": 5546, ""skipped_no_path"": 429917, ""snapshots"": 2634}",57
+1.0,1,400,399,vortex-fcfs:1.0,335,84.0,17.5,83.8,"{""NO_CANDIDATE_ROUTE"": 32, ""NO_PATH_SELECTED"": 33, ""replay_mismatches"": 0}",328
+1.0,1,400,399,vortex-isolated:1.0,151,37.8,87.5,37.8,"{""unrouted_alone"": 2}",6
+1.0,1,400,399,vortex:0.9,231,57.9,77.5,57.8,"{""NO_CANDIDATE_ROUTE"": 1, ""NO_FEASIBLE_RATE"": 137, ""NO_PATH_SELECTED"": 31}",203
+1.0,1,400,399,vortex:1.0,343,86.0,97.5,85.8,"{""NO_CANDIDATE_ROUTE"": 27, ""NO_PATH_SELECTED"": 30}",1448
+1.0,2,400,398,ion,86,21.6,75.0,21.5,,6055
+1.0,2,400,398,odl,80,20.1,15.0,20.0,"{""checked_skips"": 4383, ""graph_loads"": 2638, ""mismatches"": 0, ""paths"": 1342, ""requests"": 5725, ""skipped_no_path"": 433894, ""snapshots"": 2641}",57
+1.0,2,400,398,vortex-fcfs:1.0,351,88.2,22.5,87.8,"{""NO_CANDIDATE_ROUTE"": 34, ""NO_PATH_SELECTED"": 15, ""replay_mismatches"": 0}",329
+1.0,2,400,398,vortex-isolated:1.0,147,36.9,80.0,36.8,"{""unrouted_alone"": 4}",6
+1.0,2,400,398,vortex:0.9,225,56.5,75.0,56.2,"{""NO_CANDIDATE_ROUTE"": 2, ""NO_FEASIBLE_RATE"": 137, ""NO_PATH_SELECTED"": 36}",259
+1.0,2,400,398,vortex:1.0,345,86.7,95.0,86.2,"{""NO_CANDIDATE_ROUTE"": 31, ""NO_PATH_SELECTED"": 24}",318
+1.0,3,400,393,ion,123,31.3,72.5,30.8,,1771
+1.0,3,400,393,odl,80,20.4,7.5,20.0,"{""checked_skips"": 4383, ""graph_loads"": 2639, ""mismatches"": 0, ""paths"": 1461, ""requests"": 5844, ""skipped_no_path"": 433785, ""snapshots"": 2641}",59
+1.0,3,400,393,vortex-fcfs:1.0,339,86.3,27.5,84.8,"{""NO_CANDIDATE_ROUTE"": 30, ""NO_PATH_SELECTED"": 31, ""replay_mismatches"": 0}",330
+1.0,3,400,393,vortex-isolated:1.0,134,34.1,75.0,33.5,"{""unrouted_alone"": 3}",6
+1.0,3,400,393,vortex:0.9,219,55.7,80.0,54.8,"{""NO_CANDIDATE_ROUTE"": 3, ""NO_FEASIBLE_RATE"": 161, ""NO_PATH_SELECTED"": 17}",293
+1.0,3,400,393,vortex:1.0,341,86.8,92.5,85.2,"{""NO_CANDIDATE_ROUTE"": 30, ""NO_PATH_SELECTED"": 29}",333
+1.0,4,400,395,ion,141,35.7,65.0,35.2,,5313
+1.0,4,400,395,odl,79,20.0,7.5,19.8,"{""checked_skips"": 4337, ""graph_loads"": 2635, ""mismatches"": 0, ""paths"": 1332, ""requests"": 5669, ""skipped_no_path"": 429087, ""snapshots"": 2639}",54
+1.0,4,400,395,vortex-fcfs:1.0,343,86.8,12.5,85.8,"{""NO_CANDIDATE_ROUTE"": 46, ""NO_PATH_SELECTED"": 11, ""replay_mismatches"": 0}",329
+1.0,4,400,395,vortex-isolated:1.0,144,36.5,72.5,36.0,"{""unrouted_alone"": 7}",6
+1.0,4,400,395,vortex:0.9,213,53.9,70.0,53.2,"{""NO_CANDIDATE_ROUTE"": 5, ""NO_FEASIBLE_RATE"": 153, ""NO_PATH_SELECTED"": 29}",216
+1.0,4,400,395,vortex:1.0,353,89.4,82.5,88.2,"{""NO_CANDIDATE_ROUTE"": 38, ""NO_PATH_SELECTED"": 9}",328

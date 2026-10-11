@@ -1,0 +1,239 @@
+{
+ "plan": "LCRNS_lunar.contactplan.txt",
+ "generator": "tests/hulc/cloud/orchestrate/datasets/lcrns_contactplan.py",
+ "geometry": "NASA LCRNS Reference Constellation 3.1 (5-SV ELFO, epoch 2027-03-01), propagated by tests/hulc/lcrns_contact_plan.py: two-body, fixed inertial Earth direction, 5 deg surface mask, 60 s slots",
+ "horizon_s": 86400,
+ "srcs": [
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18"
+ ],
+ "srcs_arg": "3-18",
+ "dst": "24",
+ "roles": {
+  "ground_antenna": [
+   "1",
+   "2"
+  ],
+  "surface_user": [
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10",
+   "11",
+   "12",
+   "13",
+   "14",
+   "15",
+   "16",
+   "17",
+   "18"
+  ],
+  "relay": [
+   "19",
+   "20",
+   "21",
+   "22",
+   "23"
+  ],
+  "earth_destination": [
+   "24"
+  ]
+ },
+ "nodes": {
+  "1": {
+   "role": "ground_antenna",
+   "name": "Earth ground antenna 1"
+  },
+  "2": {
+   "role": "ground_antenna",
+   "name": "Earth ground antenna 2"
+  },
+  "3": {
+   "role": "surface_user",
+   "name": "surface site 75S 0E",
+   "lat_deg": -75.0,
+   "lon_deg": 0.0
+  },
+  "4": {
+   "role": "surface_user",
+   "name": "surface site 75S 90E",
+   "lat_deg": -75.0,
+   "lon_deg": 90.0
+  },
+  "5": {
+   "role": "surface_user",
+   "name": "surface site 75S 180E",
+   "lat_deg": -75.0,
+   "lon_deg": 180.0
+  },
+  "6": {
+   "role": "surface_user",
+   "name": "surface site 75S 270E",
+   "lat_deg": -75.0,
+   "lon_deg": 270.0
+  },
+  "7": {
+   "role": "surface_user",
+   "name": "surface site 80S 0E",
+   "lat_deg": -80.0,
+   "lon_deg": 0.0
+  },
+  "8": {
+   "role": "surface_user",
+   "name": "surface site 80S 90E",
+   "lat_deg": -80.0,
+   "lon_deg": 90.0
+  },
+  "9": {
+   "role": "surface_user",
+   "name": "surface site 80S 180E",
+   "lat_deg": -80.0,
+   "lon_deg": 180.0
+  },
+  "10": {
+   "role": "surface_user",
+   "name": "surface site 80S 270E",
+   "lat_deg": -80.0,
+   "lon_deg": 270.0
+  },
+  "11": {
+   "role": "surface_user",
+   "name": "surface site 85S 0E",
+   "lat_deg": -85.0,
+   "lon_deg": 0.0
+  },
+  "12": {
+   "role": "surface_user",
+   "name": "surface site 85S 90E",
+   "lat_deg": -85.0,
+   "lon_deg": 90.0
+  },
+  "13": {
+   "role": "surface_user",
+   "name": "surface site 85S 180E",
+   "lat_deg": -85.0,
+   "lon_deg": 180.0
+  },
+  "14": {
+   "role": "surface_user",
+   "name": "surface site 85S 270E",
+   "lat_deg": -85.0,
+   "lon_deg": 270.0
+  },
+  "15": {
+   "role": "surface_user",
+   "name": "surface site 89S 0E",
+   "lat_deg": -89.0,
+   "lon_deg": 0.0
+  },
+  "16": {
+   "role": "surface_user",
+   "name": "surface site 89S 90E",
+   "lat_deg": -89.0,
+   "lon_deg": 90.0
+  },
+  "17": {
+   "role": "surface_user",
+   "name": "surface site 89S 180E",
+   "lat_deg": -89.0,
+   "lon_deg": 180.0
+  },
+  "18": {
+   "role": "surface_user",
+   "name": "surface site 89S 270E",
+   "lat_deg": -89.0,
+   "lon_deg": 270.0
+  },
+  "19": {
+   "role": "relay",
+   "name": "LCRNS SV-1"
+  },
+  "20": {
+   "role": "relay",
+   "name": "LCRNS SV-2"
+  },
+  "21": {
+   "role": "relay",
+   "name": "LCRNS SV-3"
+  },
+  "22": {
+   "role": "relay",
+   "name": "LCRNS SV-4"
+  },
+  "23": {
+   "role": "relay",
+   "name": "LCRNS SV-5"
+  },
+  "24": {
+   "role": "earth_destination",
+   "name": "mission operations centre (Earth)"
+  }
+ },
+ "rates_bytes_per_s": {
+  "surface_relay": 37500,
+  "relay_antenna": 12500,
+  "antenna_destination": 125000000
+ },
+ "owlt_s": {
+  "relay_antenna": 1,
+  "other": 0
+ },
+ "antenna_schedule": "2 antennas; each stays on an Earth-visible relay for at most 120 min, then (or when the relay is occulted) moves to the Earth-visible unserved relay with the least downlink time so far",
+ "counts": {
+  "nodes": 24,
+  "contacts": 308,
+  "ranges": 184
+ },
+ "coverage": {
+  "surface_relay_coverage_pct": [
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0
+  ],
+  "relay_earth_visible_pct": [
+   100.0,
+   100.0,
+   100.0,
+   100.0,
+   100.0
+  ],
+  "relay_downlink_scheduled_pct": [
+   41.7,
+   41.7,
+   41.7,
+   41.7,
+   33.3
+  ]
+ }
+}

@@ -1,0 +1,4 @@
+load,seed,offered,ceiling,arm,delivered,share_of_ceiling_pct,critical_on_time_pct,on_time_pct,refusals,wall_s
+1.0,0,400,394,vortex-ionplan:1.0,219,55.6,57.5,54.8,"{""NO_CANDIDATE_ROUTE"": 11, ""NO_PATH_SELECTED"": 15, ""admitted"": 374, ""planned_on_time"": 374}",2047
+1.0,1,400,399,vortex-ionplan:1.0,215,53.9,75.0,53.8,"{""NO_CANDIDATE_ROUTE"": 7, ""NO_PATH_SELECTED"": 25, ""admitted"": 368, ""planned_on_time"": 368}",2054
+1.0,2,400,398,vortex-ionplan:1.0,205,51.5,57.5,51.2,"{""NO_CANDIDATE_ROUTE"": 6, ""NO_PATH_SELECTED"": 26, ""admitted"": 368, ""planned_on_time"": 368}",2045

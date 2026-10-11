@@ -1,0 +1,54 @@
+--- a/bpv7/daemon/bpclm.c	2026-09-20 22:47:08
++++ b/bpv7/daemon/bpclm.c	2026-10-09 17:54:47
+@@ -487,6 +487,7 @@
+ 	Bundle		secondBundle;
+ 	SdrObject	secondBundleObj;
+ 	SdrObject	queue;
++	SdrObject	originalElt;
+ 
+ 	if (!nodeName)
+ 	{
+@@ -732,6 +733,7 @@
+ 
+ 			/*	Okay to fragment.			*/
+ 
++			originalElt = bundle.planXmitElt;
+ 			queue = sdr_list_list(sdr, bundle.planXmitElt);
+ 			if (bpFragment(&bundle, bundleObj,
+ 					&(bundle.planXmitElt), maxPayloadLength,
+@@ -758,6 +760,35 @@
+ 					queue, firstBundleObj);
+ 			sdr_write(sdr, firstBundleObj, (char *) &firstBundle,
+ 					sizeof(Bundle));
++
++			/*	bpFragment() deleted the original bundle's
++			 *	queue element directly, not through
++			 *	removeBundleFromQueue(), so the plan's
++			 *	urgent-queue ordinal pointer may still
++			 *	refer to that freed element.  If it does,
++			 *	point it at the second fragment, now the
++			 *	last bundle of that ordinal; otherwise the
++			 *	next urgent bundle enqueued for this plan
++			 *	is inserted after a freed list element and
++			 *	sdr_list_insert_after() fails its assertion
++			 *	(insertBundleIntoQueue(), via bpEnqueue()).	*/
++
++			if (bundle.priority > 1)
++			{
++				sdr_stage(sdr, (char *) &plan, planObj,
++						sizeof(BpPlan));
++				if (plan.ordinals[bundle.ordinal].lastForOrdinal
++						== originalElt)
++				{
++					plan.ordinals[bundle.ordinal]
++						.lastForOrdinal =
++						secondBundle.planXmitElt;
++					sdr_write(sdr, planObj, (char *) &plan,
++							sizeof(BpPlan));
++					writeMemo("[i] bpclm: urgent ordinal \
++pointer moved off a fragmented bundle.");
++				}
++			}
+ 			bundleElt = firstBundle.planXmitElt;
+ 			bundleObj = firstBundleObj;
+ 			memcpy((char *) &bundle, (char *) &firstBundle,

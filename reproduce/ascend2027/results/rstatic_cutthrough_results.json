@@ -1,0 +1,62 @@
+[
+  {
+    "regime": "R_STATIC",
+    "arm": "Eager",
+    "load": 0.5,
+    "admission": "all (line rate)",
+    "offered_mb": 18.8,
+    "delivered_mb": 15.9,
+    "router_dropped": 36,
+    "wall_sec": 16.0
+  },
+  {
+    "regime": "R_STATIC",
+    "arm": "DFE",
+    "load": 0.5,
+    "admission": "4/4 admitted",
+    "offered_mb": 18.8,
+    "delivered_mb": 18.5,
+    "router_dropped": 0,
+    "wall_sec": 29.6
+  },
+  {
+    "regime": "R_STATIC",
+    "arm": "Eager",
+    "load": 1.0,
+    "admission": "all (line rate)",
+    "offered_mb": 37.5,
+    "delivered_mb": 34.2,
+    "router_dropped": 70,
+    "wall_sec": 29.7
+  },
+  {
+    "regime": "R_STATIC",
+    "arm": "DFE",
+    "load": 1.0,
+    "admission": "3/4 admitted",
+    "offered_mb": 28.1,
+    "delivered_mb": 28.3,
+    "router_dropped": 0,
+    "wall_sec": 30.1
+  },
+  {
+    "regime": "R_STATIC",
+    "arm": "Eager",
+    "load": 1.5,
+    "admission": "all (line rate)",
+    "offered_mb": 56.2,
+    "delivered_mb": 51.0,
+    "router_dropped": 125,
+    "wall_sec": 46.3
+  },
+  {
+    "regime": "R_STATIC",
+    "arm": "DFE",
+    "load": 1.5,
+    "admission": "2/4 admitted",
+    "offered_mb": 28.1,
+    "delivered_mb": 28.3,
+    "router_dropped": 0,
+    "wall_sec": 30.1
+  }
+]
