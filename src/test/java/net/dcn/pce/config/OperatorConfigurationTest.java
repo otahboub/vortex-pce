@@ -24,7 +24,8 @@ class OperatorConfigurationTest {
         // The route default depends on the topology's regime, so it is not resolved at parse time.
         assertEquals(OperatorConfiguration.REGIME_DEFAULT_ROUTE_POLICY, configuration.getRoutePolicyName());
         assertEquals("EAP", configuration.getPathPolicyName());
-        assertEquals("DATA_FLOW_EQUILIBRIUM", configuration.getRatePolicyName());
+        // So does the rate default.
+        assertEquals(OperatorConfiguration.REGIME_DEFAULT_RATE_POLICY, configuration.getRatePolicyName());
         assertTrue(configuration.getTopologyFile().isEmpty());
         assertTrue(configuration.getStatePath().isEmpty());
     }
@@ -238,6 +239,23 @@ class OperatorConfigurationTest {
     }
 
     @Test
+    void unsetRatePolicyResolvesPerRegimeAndAnExplicitOneAlwaysApplies() {
+        OperatorConfiguration unset = OperatorConfiguration.parse(Map.of());
+        assertEquals("RESIDUAL_BOTTLENECK_HEADROOM", unset.forRegime(ContactRegime.R_DET).getRatePolicyName());
+        assertEquals("DATA_FLOW_EQUILIBRIUM", unset.forRegime(ContactRegime.R_STATIC).getRatePolicyName());
+        assertEquals("DATA_FLOW_EQUILIBRIUM", unset.forRegime(ContactRegime.R_STOCH).getRatePolicyName());
+        assertEquals("RESIDUAL_BOTTLENECK_HEADROOM",
+                unset.forRegime(ContactRegime.R_DET).describe().get("rateAssignmentPolicy"));
+        for (String explicit : new String[]{"DATA_FLOW_EQUILIBRIUM", "DATA_FLOW_EQUILIBRIUM_AVERAGED", "LINE_RATE"}) {
+            OperatorConfiguration set = OperatorConfiguration.parse(Map.of(
+                    OperatorConfiguration.ENV_RATE_ASSIGN_POLICY, explicit));
+            for (ContactRegime regime : ContactRegime.values()) {
+                assertEquals(explicit, set.forRegime(regime).getRatePolicyName(), regime.name());
+            }
+        }
+    }
+
+    @Test
     void describeReportsEffectiveConfigurationIncludingDefaults() {
         Map<String, String> effective = OperatorConfiguration.parse(Map.of(
                 OperatorConfiguration.ENV_ROUTE_GEN_POLICY, "BOUNDED_CGR",
@@ -245,7 +263,7 @@ class OperatorConfigurationTest {
 
         assertEquals("/etc/vortex/topology.json", effective.get("topologySource"));
         assertEquals("BOUNDED_CGR", effective.get("routeGenerationPolicy"));
-        assertEquals("DATA_FLOW_EQUILIBRIUM", effective.get("rateAssignmentPolicy"));
+        assertEquals(OperatorConfiguration.REGIME_DEFAULT_RATE_POLICY, effective.get("rateAssignmentPolicy"));
         assertEquals("in-memory", effective.get("statePath"));
         assertEquals("built-in:OARNet",
                 OperatorConfiguration.parse(Map.of()).describe().get("topologySource"));

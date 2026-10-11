@@ -36,7 +36,7 @@ Every topology declares one regime, which decides how time is modelled:
    | select the next task | `TaskSelectionPolicy` | `LWEEF`: the most critical task first, i.e. the one with the least estimated earliness against its deadline |
    | generate candidate routes | `RouteGenerationPolicy` | `BOUNDED_CGR` under `R_DET`/`R_STOCH` (bounded contact-graph search), `BFS_MIN_HOP` under `R_STATIC` |
    | pick a route | `PathSelectionPolicy` | `EAP`: earliest available path |
-   | assign a rate | `RateAssignmentPolicy` | `DATA_FLOW_EQUILIBRIUM`: the slowest rate that still meets the deadline |
+   | assign a rate | `RateAssignmentPolicy` | `RESIDUAL_BOTTLENECK_HEADROOM` under `R_DET` (the route's residual rate, which keeps contact capacity in whole pieces); `DATA_FLOW_EQUILIBRIUM` (the slowest rate that still meets the deadline) under `R_STATIC` and `R_STOCH` |
 
    `SchedulingCapacity` computes residual capacity and earliest completion over the ledgers. A
    task that cannot be routed or rated is refused with a `RefusalCause`, not partially admitted.

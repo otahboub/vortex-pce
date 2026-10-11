@@ -71,7 +71,7 @@ as unadmitted.
 | `VORTEX_TASK_SELECT_POLICY` | `LWEEF` | `LWEEF`, `FCFS`, `EWOF`, `LWF` |
 | `VORTEX_ROUTE_GEN_POLICY` | by the topology's regime: `BOUNDED_CGR` under `R_DET`/`R_STOCH` (including the built-in OARNet topology), `BFS_MIN_HOP` under `R_STATIC` | `BFS_MIN_HOP`, `FAST_K_SHORTEST_PATHS`, `BOUNDED_PATH_ENUMERATION`, `K_MAX_EXHAUSTIVE`, `BOUNDED_CGR`, `DISJOINT_CGR`, `CUT_ANCHORED_CGR`, `MESH_CGR` (the last four serve `R_DET`/`R_STOCH` only) |
 | `VORTEX_PATH_SELECT_POLICY` | `EAP` | `EAP`, `OCC`, `CGR`, `MIN_HOP` |
-| `VORTEX_RATE_ASSIGN_POLICY` | `DATA_FLOW_EQUILIBRIUM` | `DATA_FLOW_EQUILIBRIUM` (aliases `EQUILIBRIUM`, `EQM`), `LINE_RATE`, `FAIRCAP`, `RESIDUAL_BOTTLENECK_HEADROOM` |
+| `VORTEX_RATE_ASSIGN_POLICY` | `RESIDUAL_BOTTLENECK_HEADROOM` under `R_DET`, `DATA_FLOW_EQUILIBRIUM` otherwise | `DATA_FLOW_EQUILIBRIUM` (aliases `EQUILIBRIUM`, `EQM`), `DATA_FLOW_EQUILIBRIUM_AVERAGED` (the policy before its scheduled-contact fix, for reproducing earlier results), `LINE_RATE`, `FAIRCAP`, `RESIDUAL_BOTTLENECK_HEADROOM` |
 | `VORTEX_STATE_PATH` | in-memory only | path to the reservation snapshot |
 | `VORTEX_UTILIZATION_HEADROOM` | `0.90` | a number in `(0, 1]`: the largest fraction of a link's residual capacity one flow may take |
 | `VORTEX_HEADROOM_ENFORCEMENT` | `WINDOW_PEAK` | `WINDOW_PEAK`: checked against the most residual capacity at any instant in the task's window (long-standing; on continuous routes it rarely binds, because the window almost always has an unreserved sliver). `TRANSMISSION_INTERVAL`: checked against every slot the flow actually transmits in |
