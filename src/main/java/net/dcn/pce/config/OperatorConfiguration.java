@@ -203,6 +203,7 @@ public final class OperatorConfiguration {
             "DATA_FLOW_EQUILIBRIUM", RateAssignmentPolicy.DATA_FLOW_EQUILIBRIUM,
             "EQUILIBRIUM", RateAssignmentPolicy.DATA_FLOW_EQUILIBRIUM,
             "EQM", RateAssignmentPolicy.DATA_FLOW_EQUILIBRIUM,
+            "DATA_FLOW_EQUILIBRIUM_AVERAGED", RateAssignmentPolicy.DATA_FLOW_EQUILIBRIUM_AVERAGED,
             "LINE_RATE", RateAssignmentPolicy.LINE_RATE,
             "FAIRCAP", RateAssignmentPolicy.FAIRCAP,
             "RESIDUAL_BOTTLENECK_HEADROOM", RateAssignmentPolicy.RESIDUAL_BOTTLENECK_HEADROOM);
@@ -252,7 +253,17 @@ public final class OperatorConfiguration {
             ROUTE_POLICIES.get(controllerDefaultRoutePolicyName(topology.getRegime())).policy()
                     .generateCandidateRoutes(task, topology, lrib, nrib);
 
-    private static final String DEFAULT_RATE_POLICY = "DATA_FLOW_EQUILIBRIUM";
+    /**
+     * Reported for a configuration that has no explicit rate policy and has not been bound to a
+     * topology yet. Its engine picks the regime default per solve; see {@link #applyTo}.
+     */
+    public static final String REGIME_DEFAULT_RATE_POLICY = "REGIME_DEFAULT";
+
+    /** The regime's default rate policy, resolved per solve for a configuration not bound to a regime. */
+    private static final RateAssignmentPolicy REGIME_DEFAULT_RATES = (task, route, topology, lrib, nrib, headroom) ->
+            RATE_POLICIES.get(controllerDefaultRatePolicyName(topology.getRegime()))
+                    .assignRate(task, route, topology, lrib, nrib, headroom);
+
     private static final String DEFAULT_TASK_POLICY = "LWEEF";
     private static final String DEFAULT_PATH_POLICY = "EAP";
 
@@ -365,8 +376,8 @@ public final class OperatorConfiguration {
     }
 
     /** A copy of {@code base} with the route policy set to {@code routePolicyName}. */
-    private OperatorConfiguration(OperatorConfiguration base, String routePolicyName) {
-        this(base.topologyFile, base.statePath, routePolicyName, base.ratePolicyName,
+    private OperatorConfiguration(OperatorConfiguration base, String routePolicyName, String ratePolicyName) {
+        this(base.topologyFile, base.statePath, routePolicyName, ratePolicyName,
                 base.taskPolicyName, base.pathPolicyName, base.solveTimeoutSec, base.utilizationHeadroom,
                 base.headroomEnforcement, base.transportMargin, base.transportMarginValue,
                 base.pcepListener,
@@ -389,7 +400,8 @@ public final class OperatorConfiguration {
                 // Unset stays null: the right default depends on the topology's regime, which is not
                 // known until the topology is loaded. forRegime() resolves it then.
                 resolveName(environment, ENV_ROUTE_GEN_POLICY, null, ROUTE_POLICIES.keySet()),
-                resolveName(environment, ENV_RATE_ASSIGN_POLICY, DEFAULT_RATE_POLICY, RATE_POLICIES.keySet()),
+                // Unset stays null for the same reason: the rate default depends on the regime.
+                resolveName(environment, ENV_RATE_ASSIGN_POLICY, null, RATE_POLICIES.keySet()),
                 resolveName(environment, ENV_TASK_SELECT_POLICY, DEFAULT_TASK_POLICY, TASK_POLICIES.keySet()),
                 resolveName(environment, ENV_PATH_SELECT_POLICY, DEFAULT_PATH_POLICY, PATH_POLICIES.keySet()),
                 resolveSolveTimeoutSec(environment),
@@ -817,24 +829,48 @@ public final class OperatorConfiguration {
                 ? DEFAULT_STATIC_ROUTE_POLICY : defaultRoutePolicyNameForRegime(regime);
     }
 
+    /**
+     * Rate policy the controller uses under {@code regime} when {@link #ENV_RATE_ASSIGN_POLICY} is unset.
+     *
+     * <p>On a deterministic contact plan ({@code R_DET}) admitted bundles are sent at the route's
+     * residual rate within the headroom ({@code RESIDUAL_BOTTLENECK_HEADROOM}). Pacing each bundle at
+     * the slowest rate that meets its deadline ({@code DATA_FLOW_EQUILIBRIUM}) stretches its
+     * reservation over more of every contact and leaves capacity fragmented: on RRN-A it delivered
+     * 87.3% of the capacity-aware ceiling at full load against 93.7% (five seeds, every schedule
+     * replay-validated), with critical traffic unchanged. {@code R_STATIC} keeps
+     * {@code DATA_FLOW_EQUILIBRIUM}, which is exact on continuous links, and so does {@code R_STOCH}
+     * until it has been measured there. An explicitly configured policy always applies.
+     */
+    public static String controllerDefaultRatePolicyName(ContactRegime regime) {
+        if (regime == null) {
+            throw new IllegalArgumentException("regime is required");
+        }
+        return regime == ContactRegime.R_DET ? "RESIDUAL_BOTTLENECK_HEADROOM" : "DATA_FLOW_EQUILIBRIUM";
+    }
+
+    /** The rate policy in force under {@code regime}: the configured one, else the regime default. */
+    public String ratePolicyNameFor(ContactRegime regime) {
+        return ratePolicyName != null ? ratePolicyName : controllerDefaultRatePolicyName(regime);
+    }
+
     /** The route policy in force under {@code regime}: the configured one, else the regime default. */
     public String routePolicyNameFor(ContactRegime regime) {
         return routePolicyName != null ? routePolicyName : controllerDefaultRoutePolicyName(regime);
     }
 
     /**
-     * This configuration with the route policy resolved for the active topology's regime, so that
-     * {@link #describe()} and {@code /api/v1/config} report the concrete policy in force. An explicitly
-     * configured policy is kept as is.
+     * This configuration with the route and rate policies resolved for the active topology's regime,
+     * so that {@link #describe()} and {@code /api/v1/config} report the concrete policies in force.
+     * Explicitly configured policies are kept as they are.
      */
     public OperatorConfiguration forRegime(ContactRegime regime) {
         if (regime == null) {
             throw new IllegalArgumentException("active topology regime is required");
         }
-        if (routePolicyName != null) {
+        if (routePolicyName != null && ratePolicyName != null) {
             return this;
         }
-        return new OperatorConfiguration(this, controllerDefaultRoutePolicyName(regime));
+        return new OperatorConfiguration(this, routePolicyNameFor(regime), ratePolicyNameFor(regime));
     }
 
     /** Applies every resolved policy to the engine. */
@@ -848,7 +884,7 @@ public final class OperatorConfiguration {
                 .withFSelect(TASK_POLICIES.get(taskPolicyName))
                 .withFGenerate(routes)
                 .withFRoute(PATH_POLICIES.get(pathPolicyName))
-                .withFProp(RATE_POLICIES.get(ratePolicyName))
+                .withFProp(ratePolicyName == null ? REGIME_DEFAULT_RATES : RATE_POLICIES.get(ratePolicyName))
                 .withUtilizationHeadroom(utilizationHeadroom)
                 .withHeadroomEnforcement(CRPEngine.HeadroomEnforcement.valueOf(headroomEnforcement))
                 .withTransportMargin(CRPEngine.TransportMargin.valueOf(transportMargin), transportMarginValue)
@@ -890,7 +926,9 @@ public final class OperatorConfiguration {
     public String getRoutePolicyName() {
         return routePolicyName != null ? routePolicyName : REGIME_DEFAULT_ROUTE_POLICY;
     }
-    public String getRatePolicyName() { return ratePolicyName; }
+    public String getRatePolicyName() {
+        return ratePolicyName != null ? ratePolicyName : REGIME_DEFAULT_RATE_POLICY;
+    }
     public String getTaskPolicyName() { return taskPolicyName; }
     public String getPathPolicyName() { return pathPolicyName; }
 
@@ -908,7 +946,7 @@ public final class OperatorConfiguration {
         effective.put("taskSelectionPolicy", taskPolicyName);
         effective.put("routeGenerationPolicy", getRoutePolicyName());
         effective.put("pathSelectionPolicy", pathPolicyName);
-        effective.put("rateAssignmentPolicy", ratePolicyName);
+        effective.put("rateAssignmentPolicy", getRatePolicyName());
         effective.put("utilizationHeadroom", String.valueOf(utilizationHeadroom));
         effective.put("headroomEnforcement", headroomEnforcement);
         effective.put("transportMargin", "NONE".equals(transportMargin)
