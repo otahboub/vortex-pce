@@ -1,0 +1,7 @@
+# Third-party RUCoP plans are fetched by harness/fetch_rucop_plans.py, never committed.
+harness/datasets/fixtures/RRN-*.contactplan.txt
+figures/
+d2_work/
+work/
+__pycache__/
+harness/_volcheck/

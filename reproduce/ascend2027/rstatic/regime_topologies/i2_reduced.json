@@ -1,0 +1,16 @@
+{
+  "regime": "R_STATIC",
+  "nodes": [
+    {"nodeId": "SRC", "name": "Columbus", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e12},
+    {"nodeId": "MID", "name": "Cleveland", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e8},
+    {"nodeId": "DST", "name": "Chicago", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e12}
+  ],
+  "links": [
+    {"linkId": "A", "sourceNodeId": "SRC", "destinationNodeId": "MID",
+     "baseBandwidthBps": 1e7, "propagationDelaySec": 0.001,
+     "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0},
+    {"linkId": "B", "sourceNodeId": "MID", "destinationNodeId": "DST",
+     "baseBandwidthBps": 1e7, "propagationDelaySec": 0.001,
+     "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0}
+  ]
+}

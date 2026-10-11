@@ -1,0 +1,17 @@
+# D2 worked example. 1=T1, 2=T2 (terminals), 3=S1, 4=S2 (satellites), 5=G (gateway, destination).
+# 12,500 B/s as RRN-A: a 1 MB bundle takes 80 s; the 120 s downlinks (1.5 MB) carry one bundle each, at full contact volume.
+a contact +0 +400 2 3 12500
+a contact +0 +400 3 2 12500
+a contact +600 +1000 1 3 12500
+a contact +600 +1000 3 1 12500
+a contact +1200 +1600 2 4 12500
+a contact +1200 +1600 4 2 12500
+a contact +2000 +2120 3 5 12500
+a contact +2000 +2120 5 3 12500
+a contact +3000 +3120 4 5 12500
+a contact +3000 +3120 5 4 12500
+a range +0 +4000 2 3 0
+a range +0 +4000 1 3 0
+a range +0 +4000 2 4 0
+a range +0 +4000 3 5 0
+a range +0 +4000 4 5 0

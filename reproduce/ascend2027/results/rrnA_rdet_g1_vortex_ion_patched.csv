@@ -1,0 +1,2 @@
+load,seed,offered,ceiling,arm,delivered,share_of_ceiling_pct,critical_on_time_pct,on_time_pct,refusals,wall_s
+1.0,0,400,394,vortex-ion:1.0,153,38.8,75.0,38.2,"{""NO_CANDIDATE_ROUTE"": 11, ""NO_PATH_SELECTED"": 15, ""admitted"": 374, ""contacts_allocated"": 740, ""planned_on_time"": 374}",2047

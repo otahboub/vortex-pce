@@ -1,0 +1,304 @@
+{
+ "A1 0.5× vortex:1.0 share": [
+  "98.9"
+ ],
+ "A1 0.5× vortex:1.0 critical": [
+  "91.0"
+ ],
+ "A1 0.5× vortex:0.9 share": [
+  "94.6"
+ ],
+ "A1 0.5× ion share": [
+  "81.3"
+ ],
+ "A1 0.5× ion critical": [
+  "78.0"
+ ],
+ "A1 0.5× odl share": [
+  "23.3"
+ ],
+ "A1 0.5× odl critical": [
+  "17.0"
+ ],
+ "A1 1× vortex:1.0 share": [
+  "93.7"
+ ],
+ "A1 1× vortex:1.0 critical": [
+  "90.5"
+ ],
+ "A1 1× vortex:0.9 share": [
+  "63.1"
+ ],
+ "A1 1× ion share": [
+  "34.9"
+ ],
+ "A1 1× ion critical": [
+  "69.5"
+ ],
+ "A1 1× odl share": [
+  "19.9"
+ ],
+ "A1 1× odl critical": [
+  "8.5"
+ ],
+ "A1 ION 1x seed range": [
+  "31.4–37.8%"
+ ],
+ "A1 seeds": [
+  "five seeds each (0–4)",
+  "mean of five seeds"
+ ],
+ "A1 ION 1x delivered bundles": [
+  "125–149 arrive"
+ ],
+ "A1 Vortex 1x admitted": [
+  "admits 367–377 of 400"
+ ],
+ "ODL path availability": [
+  "0.17–0.34%"
+ ],
+ "ODL mismatches are zero (stated as never disagreed)": [
+  "never disagreed"
+ ],
+ "A1 abstract headline": [
+  "99% of a capacity-aware ceiling at half load (ION: 81%)",
+  "94% at full load (ION: 35%)",
+  "91% and 90% of critical bundles",
+  "ION's 78% and 70%",
+  "delivers 23% and 20%"
+ ],
+ "Table 3 vortex-isolated:1.0": [
+  "| Routes only | 53.3 / 34.8 | 84.0 / 79.5 |"
+ ],
+ "Table 3 vortex-fcfs:1.0": [
+  "| + reservation and admission (arrival order) | 99.1 / 88.7 | 88.0 / 22.5 |"
+ ],
+ "Table 3 vortex:1.0": [
+  "| + least slack first (VortexPCE) | 98.9 / 93.7 | 91.0 / 90.5 |"
+ ],
+ "ablation text": [
+  "delivery falls to 53.3% and 34.8%",
+  "against 22.5% when bundles are admitted in arrival order",
+  "without reserving capacity delivers 53% and 35%",
+  "raises total delivery at full load, from 88.7% to 93.7%"
+ ],
+ "Table 4 | DFE, averaged estimate, 1.0 |": [
+  "| DFE, averaged estimate, 1.0 |",
+  "97.2 / 87.3",
+  "91.0 / 90.5"
+ ],
+ "Table 4 | DFE, contact-based check, 1.0 |": [
+  "| DFE, contact-based check, 1.0 |",
+  "97.2 / 87.3",
+  "91.0 / 90.5"
+ ],
+ "Table 4 | Residual rate, 1.0 |": [
+  "| Residual rate, 1.0 |",
+  "98.9 / 93.7",
+  "91.0 / 90.5"
+ ],
+ "Table 4 | DFE, averaged estimate, 0.9 |": [
+  "| DFE, averaged estimate, 0.9 |",
+  "75.0 / 55.0",
+  "80.0 / 76.0"
+ ],
+ "Table 4 | DFE, contact-based check, 0.9 |": [
+  "| DFE, contact-based check, 0.9 |",
+  "84.8 / 53.4",
+  "91.0 / 89.5"
+ ],
+ "Table 4 | Residual rate, 0.9 |": [
+  "| Residual rate, 0.9 |",
+  "94.6 / 63.1",
+  "91.0 / 89.5"
+ ],
+ "residual rate gain per seed": [
+  "by 5.8–7.3 points per seed",
+  "costs 6.4 points at full load"
+ ],
+ "Table 5 | VortexPCE's committed schedule |": [
+  "| VortexPCE's committed schedule | 374 | 94.9 | 85.0 |"
+ ],
+ "Table 5 | ION following VortexPCE's routes |": [
+  "| ION following VortexPCE's routes | 219 | 55.6 | 57.5 |"
+ ],
+ "Table 5 | ION restricted to VortexPCE's reserved contacts |": [
+  "| ION restricted to VortexPCE's reserved contacts | 153 | 38.8 | 75.0 |"
+ ],
+ "Table 5 | ION alone |": [
+  "| ION alone | 149 | 37.8 | 70.0 |"
+ ],
+ "G1 lift": [
+  "raises ION's delivery by 17.8 points on seed 0",
+  "from 37.8% to 55.6%",
+  "155 expired in queues"
+ ],
+ "G1 seeds": [
+  "delivers 53.9% and 51.5% of the ceiling",
+  "a mean of 53.7%, against 31.4–37.8% for ION alone as released",
+  "a gain of 17.8–20.1 points",
+  "patched ION alone on seed 2 (35.4%), the gain is 16.1 points",
+  "57.5–75.0% of critical bundles arrive on time, against 67.5–75.0% for ION alone"
+ ],
+ "G1 limitation": [
+  "on three seeds they reach 51.5–55.6% of the ceiling, not 92.2–94.9%"
+ ],
+ "G1 third": [
+  "it recovers about a third of that gain (§5.4)"
+ ],
+ "G1 abstract": [
+  "by 17.8–20.1 points across three seeds, to 51.5–55.6% of the ceiling"
+ ],
+ "Table 6 odl": [
+  "| OpenDaylight | 97.3 / 52.3 | 73.1 / 15.1 |"
+ ],
+ "Table 6 vortex-isolated:1.0": [
+  "| VortexPCE, routes only | 53.5 / 26.7 | 50.0 / 26.4 |"
+ ],
+ "Table 6 VortexPCE": [
+  "| VortexPCE | **100.0 / 94.1** | **100.0 / 100.0** |"
+ ],
+ "Table 6 ION": [
+  "99.6 / 67.8 | 100.0 / 98.1 |"
+ ],
+ "lunar ION half load": [
+  "ION delivers 255 of 256 bundles (99.6%)"
+ ],
+ "lunar abstract": [
+  "VortexPCE delivers 94.1% at full load against 67.8% for ION and 52.3% for OpenDaylight"
+ ],
+ "lunar offered": [
+  "0.5× and 1× offer 256 and 528",
+  "saturated ceiling is 528 bundles"
+ ],
+ "patched vs unpatched seed 2": [
+  "delivered 141 bundles (35.4% of the ceiling)",
+  "delivered 125 (31.4%)"
+ ],
+ "RRN-A CGR SDP": [
+  "0.689 / 0.286 / 0.101"
+ ],
+ "RRN-A BOUNDED_CGR SDP": [
+  "0.897 / 0.490 / 0.186"
+ ],
+ "RRN-A BOUNDED_CGR routes": [
+  "about 2.3"
+ ],
+ "RRN-A cut k8": [
+  "0.992",
+  "0.837",
+  "0.997",
+  "0.983"
+ ],
+ "RRN-B cut k8 p=0.3": [
+  "0.941 against the oracle's 0.946"
+ ],
+ "RRN-B cut k8 p=0.5": [
+  "0.875 against 0.935"
+ ],
+ "RRN-B BOUNDED failure": [
+  "8 of the 24 reachable terminals",
+  "routes all 24",
+  "(0.231 against 0.182 at p = 0.3)"
+ ],
+ "abstract RUCoP": [
+  "(0.992 vs 0.997 and 0.941 vs 0.946)",
+  "nominal CGR delivers 0.29 and 0.18"
+ ],
+ "cut k8 share of oracle p=0.5": [
+  "85% of the oracle with about 15 routes"
+ ],
+ "mesh0 share p=0.5": [
+  "97% with about 32"
+ ],
+ "p=0.7 shares": [
+  "reach 35% and 61%"
+ ],
+ "mesh ALL attains": [
+  "0.970 against 0.970",
+  "0.874 against 0.875",
+  "1,390 routes per bundle"
+ ],
+ "plan once vs flooding": [
+  "only 24–41% of the capacity-aware ceiling",
+  "against 66–79% for directed flooding"
+ ],
+ "hourly closed loop": [
+  "reaches 67–83%"
+ ],
+ "30-min re-plan": [
+  "86.0% / 73.1%",
+  "(65.6% / 68.3%)"
+ ],
+ "first hour of delay": [
+  "costs 9–15 points"
+ ],
+ "overbooking ranges": [
+  "from 34.7–56.6% to 61.2–69.5%",
+  "from 16.4–37.0% to 41.9–51.8%"
+ ],
+ "hardest cell": [
+  "(80.3% against 68.0%)"
+ ],
+ "paired rerun": [
+  "We re-ran the six 200 MB cells",
+  "No result moved by more than 0.2 points"
+ ],
+ "priority vortex_GLOBAL_MARGINAL": [
+  "delivers 37–89% of critical"
+ ],
+ "priority flooding": [
+  "against 9–66% for priority-blind"
+ ],
+ "priority flooding_priority": [
+  "better still (69–100%)"
+ ],
+ "single bottleneck": [
+  "18.5 MB against 15.9 MB",
+  "28.3 MB against 34.2 MB",
+  "deliver 51.0 MB but finish 46 s"
+ ],
+ "two paths": [
+  "1.2× a single-path",
+  "(22.5 MB against 10.7 MB at full load)"
+ ],
+ "contact counts": [
+  "3,184 contacts",
+  "1,512 contacts"
+ ],
+ "extended abstract Table 1 odl": [
+  "23.3 / 19.9",
+  "17.0 / 8.5"
+ ],
+ "extended abstract Table 1 ion": [
+  "80.0 / 31.0",
+  "73.0 / 73.0"
+ ],
+ "extended abstract Table 1 vortex:1.0": [
+  "97.2 / 87.3",
+  "91.0 / 90.5"
+ ],
+ "extended abstract ablation (Figure 2)": [
+  "delivers 55% and 37% of the ceiling, below ION at half load",
+  "raises delivery to 97.5% and 86.9%",
+  "from 20.5% to 90.5%"
+ ],
+ "extended abstract default generator (Figure 3)": [
+  "about 2.3 routes per bundle on RRN-A",
+  "(0.490 and 0.231 at p = 0.3)"
+ ],
+ "extended abstract under load (Figure 4)": [
+  "only 24–41% of the capacity-aware ceiling",
+  "against 66–79% for directed flooding",
+  "reaches 67–83%",
+  "86.0% / 73.1%",
+  "(65.6% / 68.3%)",
+  "(80.3% against 68.0%)",
+  "from 34.7–56.6% to 61.2–69.5%"
+ ],
+ "extended abstract headline": [
+  "97% of a capacity-aware ceiling at half load (ION: 80%)",
+  "87% at full load (ION: 31%)",
+  "delivers 23% and 20%"
+ ]
+}

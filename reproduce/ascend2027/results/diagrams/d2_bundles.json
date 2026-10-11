@@ -1,0 +1,23 @@
+[
+ {
+  "id": "Y",
+  "src": "2",
+  "t": 0.0,
+  "deadline": 4000.0,
+  "critical": false
+ },
+ {
+  "id": "X",
+  "src": "1",
+  "t": 100.0,
+  "deadline": 2500.0,
+  "critical": false
+ },
+ {
+  "id": "Z",
+  "src": "1",
+  "t": 100.0,
+  "deadline": 4000.0,
+  "critical": false
+ }
+]

@@ -1,0 +1,148 @@
+{
+ "ion_deliveries": [
+  "X",
+  "Y"
+ ],
+ "ion_counters": {
+  "1": {
+   "src": 2,
+   "src_bytes": 200004,
+   "fwd": 2,
+   "fwd_bytes": 141144,
+   "xmt": 3,
+   "xmt_bytes": 141144,
+   "rcv": 0,
+   "rcv_bytes": 0,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "2": {
+   "src": 1,
+   "src_bytes": 100002,
+   "fwd": 1,
+   "fwd_bytes": 100002,
+   "xmt": 2,
+   "xmt_bytes": 100002,
+   "rcv": 0,
+   "rcv_bytes": 0,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "3": {
+   "src": 0,
+   "src_bytes": 0,
+   "fwd": 4,
+   "fwd_bytes": 165002,
+   "xmt": 3,
+   "xmt_bytes": 137502,
+   "rcv": 5,
+   "rcv_bytes": 241146,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "4": {
+   "src": 0,
+   "src_bytes": 0,
+   "fwd": 0,
+   "fwd_bytes": 0,
+   "xmt": 0,
+   "xmt_bytes": 0,
+   "rcv": 0,
+   "rcv_bytes": 0,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "5": {
+   "src": 0,
+   "src_bytes": 0,
+   "fwd": 0,
+   "fwd_bytes": 0,
+   "xmt": 0,
+   "xmt_bytes": 0,
+   "rcv": 7,
+   "rcv_bytes": 241146,
+   "dlv": 2,
+   "dlv_bytes": 200004,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  }
+ },
+ "ion_gateway_bytes_received": 241146,
+ "s1_g_window_s": [
+  2000.0,
+  2120.0
+ ],
+ "traces": {
+  "Y": {
+   "hops": [
+    [
+     "2",
+     "3",
+     0.0,
+     80.0
+    ],
+    [
+     "3",
+     "5",
+     2000.0,
+     2080.0
+    ]
+   ],
+   "end": [
+    "delivered",
+    2080.0,
+    "G"
+   ]
+  },
+  "X": {
+   "hops": [
+    [
+     "1",
+     "3",
+     600.0,
+     680.0
+    ]
+   ],
+   "end": [
+    "expired",
+    2500.0,
+    "S1"
+   ]
+  },
+  "Z": {
+   "hops": [
+    [
+     "1",
+     "3",
+     680.0,
+     760.0
+    ]
+   ],
+   "end": [
+    "expired",
+    4000.0,
+    "S1"
+   ]
+  }
+ },
+ "summary": "Accepts all three and routes each on arrival: Y reaches\nS1 first and books S1\u2013G; T1 still sends X and Z\nup to S1, where they wait and expire.",
+ "note": "first hops (T1 forwards X and Z; S1 receives all three) are observed in real ION's counters; the outcome at S1 follows CGR's volume rule on the plan (one bundle on S1-G). The harness's ION does not enforce contact volume, so it delivered ['X', 'Y']; see the campaign's ION-fidelity follow-up."
+}

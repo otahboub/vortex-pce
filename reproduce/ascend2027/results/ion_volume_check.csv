@@ -1,0 +1,9 @@
+duration_s,compress,link_emu,offered,planned_bundles,delivered_bundles,excess_bundles,b_rcv_bytes,planned_bytes,emu_fwd_bytes,emu_drop_closed,emu_drop_cut
+217.0,10.0,False,5,2,5,3,236993,271250,,,
+217.0,60.0,False,5,2,5,3,50007,45208,,,
+600.0,60.0,False,10,7,10,3,133352,125000,,,
+600.0,10.0,False,10,7,10,3,800024,750000,,,
+217.0,60.0,True,5,2,2,0,40859,45208,41111,2,0
+217.0,10.0,True,5,2,2,0,249322,271250,249776,6,0
+600.0,60.0,True,10,7,7,0,100014,125000,117349,2,0
+600.0,10.0,True,10,7,7,0,705659,750000,707023,4,1

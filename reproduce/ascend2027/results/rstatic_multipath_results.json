@@ -1,0 +1,74 @@
+[
+  {
+    "arm": "ClassicIP",
+    "load": 0.5,
+    "admitted": "7/8",
+    "pipes_used": 1,
+    "offered_mb": 18.8,
+    "delivered_mb": 12.8,
+    "wall_sec": 13.0
+  },
+  {
+    "arm": "Optimized",
+    "load": 0.5,
+    "admitted": "8/8",
+    "pipes_used": 2,
+    "offered_mb": 18.8,
+    "delivered_mb": 15.5,
+    "wall_sec": 13.5
+  },
+  {
+    "arm": "ClassicIP",
+    "load": 1.0,
+    "admitted": "3/8",
+    "pipes_used": 1,
+    "offered_mb": 37.5,
+    "delivered_mb": 10.7,
+    "wall_sec": 10.3
+  },
+  {
+    "arm": "Optimized",
+    "load": 1.0,
+    "admitted": "6/8",
+    "pipes_used": 2,
+    "offered_mb": 37.5,
+    "delivered_mb": 22.5,
+    "wall_sec": 11.3
+  },
+  {
+    "arm": "ClassicIP",
+    "load": 1.5,
+    "admitted": "2/8",
+    "pipes_used": 1,
+    "offered_mb": 56.2,
+    "delivered_mb": 12.2,
+    "wall_sec": 11.3
+  },
+  {
+    "arm": "Optimized",
+    "load": 1.5,
+    "admitted": "4/8",
+    "pipes_used": 2,
+    "offered_mb": 56.2,
+    "delivered_mb": 22.3,
+    "wall_sec": 11.3
+  },
+  {
+    "arm": "ClassicIP",
+    "load": 2.0,
+    "admitted": "1/8",
+    "pipes_used": 1,
+    "offered_mb": 75.0,
+    "delivered_mb": 7.6,
+    "wall_sec": 6.7
+  },
+  {
+    "arm": "Optimized",
+    "load": 2.0,
+    "admitted": "2/8",
+    "pipes_used": 2,
+    "offered_mb": 75.0,
+    "delivered_mb": 15.3,
+    "wall_sec": 6.7
+  }
+]

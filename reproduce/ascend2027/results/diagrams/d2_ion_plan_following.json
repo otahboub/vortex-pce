@@ -1,0 +1,126 @@
+{
+ "ion_deliveries": [
+  "X",
+  "Y"
+ ],
+ "arrival_s": {
+  "X": 2100.0,
+  "Y": 3100.0
+ },
+ "sent": [
+  "X",
+  "Y"
+ ],
+ "overrides": [
+  {
+   "node": "2",
+   "label": 1000,
+   "dest": "5",
+   "src": "2",
+   "neighbor": "4"
+  },
+  {
+   "node": "4",
+   "label": 1000,
+   "dest": "5",
+   "src": "2",
+   "neighbor": "5"
+  },
+  {
+   "node": "1",
+   "label": 1001,
+   "dest": "5",
+   "src": "1",
+   "neighbor": "3"
+  },
+  {
+   "node": "3",
+   "label": 1001,
+   "dest": "5",
+   "src": "1",
+   "neighbor": "5"
+  }
+ ],
+ "ion_counters": {
+  "1": {
+   "src": 1,
+   "src_bytes": 100002,
+   "fwd": 1,
+   "fwd_bytes": 100002,
+   "xmt": 2,
+   "xmt_bytes": 100002,
+   "rcv": 0,
+   "rcv_bytes": 0,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "2": {
+   "src": 1,
+   "src_bytes": 100002,
+   "fwd": 1,
+   "fwd_bytes": 100002,
+   "xmt": 2,
+   "xmt_bytes": 100002,
+   "rcv": 0,
+   "rcv_bytes": 0,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "3": {
+   "src": 0,
+   "src_bytes": 0,
+   "fwd": 2,
+   "fwd_bytes": 100002,
+   "xmt": 2,
+   "xmt_bytes": 100002,
+   "rcv": 2,
+   "rcv_bytes": 100002,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "4": {
+   "src": 0,
+   "src_bytes": 0,
+   "fwd": 2,
+   "fwd_bytes": 100002,
+   "xmt": 2,
+   "xmt_bytes": 100002,
+   "rcv": 2,
+   "rcv_bytes": 100002,
+   "dlv": 0,
+   "dlv_bytes": 0,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  },
+  "5": {
+   "src": 0,
+   "src_bytes": 0,
+   "fwd": 0,
+   "fwd_bytes": 0,
+   "xmt": 0,
+   "xmt_bytes": 0,
+   "rcv": 4,
+   "rcv_bytes": 200004,
+   "dlv": 2,
+   "dlv_bytes": 200004,
+   "rfw": 0,
+   "rfw_bytes": 0,
+   "exp": 0,
+   "exp_bytes": 0
+  }
+ }
+}

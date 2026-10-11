@@ -1,0 +1,4 @@
+FROM ubuntu:24.04
+RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+      iperf3 iproute2 iputils-ping python3 procps ethtool >/dev/null 2>&1
+CMD ["sleep", "infinity"]

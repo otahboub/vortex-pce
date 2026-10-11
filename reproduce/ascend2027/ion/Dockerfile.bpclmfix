@@ -1,0 +1,7 @@
+# ion-dtn:paper with the bpclm fix (docs: ION_BUG.md): the patched bpclm.c is rebuilt by ION's own
+# Makefile, so only the bpclm daemon changes, with the original build's flags.
+#   docker build -t ion-dtn:paper-bpclmfix -f reproduce/ascend2027/ion/Dockerfile.bpclmfix reproduce/ascend2027/ion
+FROM ion-dtn:paper
+COPY ion-bpclm-fragment-urgent-ordinal.patch /tmp/bpclm.patch
+RUN cd /opt/ION-DTN && git apply /tmp/bpclm.patch && make -j4 && make install && ldconfig \
+    && grep -q "pointer moved off a fragmented bundle" bpv7/daemon/bpclm.c

@@ -1,0 +1,15 @@
+{
+  "regime": "R_STATIC",
+  "nodes": [
+    {"nodeId": "SRC", "name": "OAR-COL", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e12},
+    {"nodeId": "CLE", "name": "Cleveland", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e11},
+    {"nodeId": "CIN", "name": "Cincinnati", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e11},
+    {"nodeId": "DST", "name": "I2-CHI", "serviceRateBps": 1e12, "reservoirCapacityBytes": 1e12}
+  ],
+  "links": [
+    {"linkId": "SRC-CLE", "sourceNodeId": "SRC", "destinationNodeId": "CLE", "baseBandwidthBps": 1e7, "propagationDelaySec": 0.001, "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0},
+    {"linkId": "CLE-DST", "sourceNodeId": "CLE", "destinationNodeId": "DST", "baseBandwidthBps": 1e7, "propagationDelaySec": 0.001, "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0},
+    {"linkId": "SRC-CIN", "sourceNodeId": "SRC", "destinationNodeId": "CIN", "baseBandwidthBps": 1e7, "propagationDelaySec": 0.001, "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0},
+    {"linkId": "CIN-DST", "sourceNodeId": "CIN", "destinationNodeId": "DST", "baseBandwidthBps": 1e7, "propagationDelaySec": 0.001, "activeContactSec": 1.0, "inactivePreSec": 0.0, "inactivePostSec": 0.0}
+  ]
+}
