@@ -171,6 +171,17 @@
   "0.5× and 1× offer 256 and 528",
   "saturated ceiling is 528 bundles"
  ],
+ "radios RRN-A": [
+  "at full load a node transmits on two contacts at once 12 times",
+  "involving 17 of 374 admitted bundles; at half load once, involving 2 of 196"
+ ],
+ "radios lunar": [
+  "(56 bundles at full load)",
+  "this involves 164 of 497 bundles at full load and 40 of 256 at half load"
+ ],
+ "radios limitation": [
+  "which touches 17 of 374 bundles on RRN-A at full load and 164 of 497 on the lunar plan"
+ ],
  "patched vs unpatched seed 2": [
   "delivered 141 bundles (35.4% of the ceiling)",
   "delivered 125 (31.4%)"
