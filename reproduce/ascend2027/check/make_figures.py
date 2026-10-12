@@ -10,6 +10,8 @@
   fig_c2_load.png   C2 under load (§4i–§4k): plan once / closed loop / overbooking vs flooding, and re-plan speed.
   fig_c2_priority.png  §4f: critical protection under failures, plan once vs flooding.
   fig_c3_rstatic.png   C3: continuous backbone, single bottleneck and two disjoint paths.
+  fig_rate_policy.png  Table 4: rate policy x headroom.   fig_plan_execution.png  Table 5 on three seeds.
+  fig_lunar.png        Table 6: the lunar relay plan.
 
 Usage: python3 reproduce/ascend2027/check/make_figures.py   (writes reproduce/ascend2027/figures/)
 The paper sets these in Avenir Next; this copy uses DejaVu Sans, so only the typeface differs.
@@ -303,6 +305,104 @@ def fig_a1_ablation(src="rrnA_rdet_flagship.csv", out="fig_a1_ablation.png"):
     fig.savefig(os.path.join(OUT, out), dpi=600)
 
 
+def _bars(ax, groups, series, value, w):
+    """Grouped bars: series = [(key, label, colour, hatch)], value(group, key) -> list of samples or None."""
+    n = len(series)
+    for k, (key, label, colour, hatch) in enumerate(series):
+        xs, ys, lo, hi = [], [], [], []
+        for i, g in enumerate(groups):
+            v = value(g, key)
+            if not v:
+                continue
+            m = sum(v) / len(v)
+            xs.append(i + (k - (n - 1) / 2) * w)
+            ys.append(m)
+            lo.append(m - min(v))
+            hi.append(max(v) - m)
+        ax.bar(xs, ys, w * 0.92, color=colour, hatch=hatch, edgecolor="white", linewidth=0.8, label=label)
+        if any(lo) or any(hi):
+            ax.errorbar(xs, ys, yerr=[lo, hi], fmt="none", ecolor=INK, elinewidth=0.8, capsize=2)
+        for x, y, h in zip(xs, ys, hi):
+            ax.text(x, y + h + 2, f"{y:.0f}", ha="center", fontsize=7, color=INK)
+
+
+def fig_rate_policy(out="fig_rate_policy.png"):
+    """Table 4: VortexPCE's rate policy x utilization headroom, RRN-A R_DET, mean of seeds 0-4 with range."""
+    sw = rows("rrnA_rate_policy_sweep.csv")
+    series = [("DATA_FLOW_EQUILIBRIUM_AVERAGED", "DFE, averaged estimate", "#d9d7cf", ".."),
+              ("DATA_FLOW_EQUILIBRIUM", "DFE, contact-based check", YELLOW, "//"),
+              ("RESIDUAL_BOTTLENECK_HEADROOM", "Residual rate (R_DET default)", BLUE, "")]
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.1), sharey=True)
+    for ax, h in zip(axes, ["1.0", "0.9"]):
+        _bars(ax, ["0.5", "1.0"], series, lambda ld, pol: [float(r["share_of_ceiling_pct"]) for r in sw
+              if r["rate_policy"] == pol and r["headroom"] == h and r["load"] == ld], 0.26)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(["0.5× load", "1× load"])
+        ax.set_ylim(0, 110)
+        ax.set_title(f"Headroom {h}: delivered, % of ceiling", fontsize=9, color=INK)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, fontsize=7, loc="lower center", ncol=3)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    fig.savefig(os.path.join(OUT, out), dpi=600)
+
+
+def fig_plan_execution(out="fig_plan_execution.png"):
+    """Table 5 on three seeds: VortexPCE's committed plan, ION following its routes, ION alone (RRN-A, 1x)."""
+    final = rows("rrnA_rdet_final.csv")
+    pf = {r["seed"]: r for r in rows("rrnA_rdet_g1_plan_following.csv")}
+    rs = {r["seed"]: r for r in rows("rrnA_rdet_g1_vortex_ion_patched.csv")}
+    pat = {r["seed"]: r for r in rows("rrnA_rdet_ion_linkemu_patched.csv")}
+    arm = lambda a, s: next(r for r in final if r["arm"] == a and r["load"] == "1.0" and r["seed"] == s)  # noqa: E731
+    seeds = sorted(pf)
+    series = [("plan", "VortexPCE's committed schedule", BLUE, ""),
+              ("follow", "ION following VortexPCE's routes", AQUA, "//"),
+              ("restrict", "ION restricted to reserved contacts", "#8fd6bb", "xx"),
+              ("alone", "ION alone", "#cdeee0", "..")]
+    src = {"plan": lambda s: arm("vortex:1.0", s), "follow": lambda s: pf[s],
+           "restrict": lambda s: rs.get(s), "alone": lambda s: arm("ion", s)}
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.1))
+    for ax, (key, title) in zip(axes, [("share_of_ceiling_pct", "Delivered, % of ceiling"),
+                                       ("critical_on_time_pct", "Critical bundles on time, %")]):
+        _bars(ax, seeds, series, lambda s, k: [float(src[k](s)[key])] if src[k](s) else None, 0.2)
+        for i, s in enumerate(seeds):
+            if s in pat:
+                x, y = i + 1.5 * 0.2 + 0.13, float(pat[s][key])
+                ax.plot([x], [y], marker="D", color=INK, markersize=3.5, linestyle="none",
+                        label="ION alone, with the bpclm fix")
+                ax.text(x + 0.05, y, f"{y:.0f}", ha="left", va="center", fontsize=7, color=INK)
+        ax.set_xticks(range(len(seeds)))
+        ax.set_xticklabels([f"seed {s}" for s in seeds])
+        ax.set_ylim(0, 110)
+        ax.set_title(title, fontsize=9, color=INK)
+    handles, labels = axes[0].get_legend_handles_labels()
+    order = [1, 2, 3, 4, 0]  # the four bar series, then the patched-ION marker
+    fig.legend([handles[i] for i in order], [labels[i] for i in order], fontsize=7, loc="lower center", ncol=3)
+    fig.tight_layout(rect=(0, 0.13, 1, 1))
+    fig.savefig(os.path.join(OUT, out), dpi=600)
+
+
+def fig_lunar(out="fig_lunar.png"):
+    """Table 6: the LCRNS lunar relay plan, R_DET, 4 MB bundles, seed 0."""
+    g3 = rows("lcrns_g3_pilot.csv") + rows("lcrns_g3_ion_patched.csv")
+    series = [("odl", "OpenDaylight", YELLOW, "xx"),
+              ("ion", "ION (CGR), with the bpclm fix", AQUA, ".."),
+              ("vortex-isolated:1.0", "VortexPCE, routes only", "#a9c8ef", ".."),
+              ("vortex:1.0", "VortexPCE", BLUE, "")]
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.1))
+    for ax, (key, title) in zip(axes, [("share_of_ceiling_pct", "Delivered, % of ceiling"),
+                                       ("critical_on_time_pct", "Critical bundles on time, %")]):
+        _bars(ax, ["0.5", "1.0"], series, lambda ld, a: [float(r[key]) for r in g3
+              if r["arm"] == a and r["load"] == ld], 0.2)
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(["0.5× load", "1× load"])
+        ax.set_ylim(0, 110)
+        ax.set_title(title, fontsize=9, color=INK)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, fontsize=7, loc="lower center", ncol=4)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    fig.savefig(os.path.join(OUT, out), dpi=600)
+
+
 if __name__ == "__main__":
     fig_a1()                      # the submitted extended abstract's figures, from its result file
     fig_a1_ablation()
@@ -314,4 +414,7 @@ if __name__ == "__main__":
     fig_load()
     fig_priority()
     fig_rstatic()
+    fig_rate_policy()
+    fig_plan_execution()
+    fig_lunar()
     print("wrote the preprint figures to", OUT)

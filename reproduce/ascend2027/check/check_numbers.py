@@ -201,6 +201,48 @@ expect("lunar offered", f"0.5× and 1× offer {g('vortex:1.0', '0.5')['offered']
        f"saturated ceiling is {g('vortex:1.0', '1.0')['ceiling']} bundles")
 assert all(json.loads(g(a, ld)["refusals"])["skipped_no_path"] == 0 for a in ("odl",) for ld in ("0.5", "1.0")), "ODL path every snapshot"
 
+# --- Contacts and radios (§4.1, §6): parallel transmissions in the committed schedules, seed 0 ---
+import gzip  # noqa: E402
+from collections import defaultdict  # noqa: E402
+
+
+def parallel_tx(key, role):
+    """Pairs of a node's transmissions on two different space-ground contacts that overlap in time."""
+    s = json.load(gzip.open(os.path.join(RES, "schedules", f"{key}_solve.json.gz"), "rt"))
+    tx = defaultdict(list)
+    for sch in s["committedSchedules"]:
+        for h in sch["hops"]:
+            u, v = h["sourceNodeId"], h["destinationNodeId"]
+            ru, rv = role(u), role(v)
+            if (ru in ("sat", "relay")) != (rv in ("sat", "relay")) and not {"srv", "dst"} & {ru, rv}:
+                tx[u] += [(sl["startSec"], sl["endSec"], v, sch["taskId"]) for sl in h["transmissionSlots"]]
+    out = defaultdict(lambda: [0, set()])
+    for n, slots in tx.items():
+        for i, (a, b, v, t) in enumerate(slots):
+            for c, d, w, t2 in slots[i + 1:]:
+                if min(b, d) - max(a, c) > 1e-9 and v != w:
+                    k = (role(n), tuple(sorted({role(v), role(w)})))
+                    out[k][0] += 1
+                    out[k][1] |= {t, t2}
+    every = set().union(*[x[1] for x in out.values()]) if out else set()
+    return out, sum(x[0] for x in out.values()), len(every), len(s["committedSchedules"])
+
+
+rr = lambda n: "gw" if int(n) <= 6 else "term" if int(n) <= 31 else "sat" if int(n) <= 47 else "srv"  # noqa: E731
+rl = lambda n: "ant" if int(n) <= 2 else "surf" if int(n) <= 18 else "relay" if int(n) <= 23 else "dst"  # noqa: E731
+_, nf, bf, af = parallel_tx("rrnA_full_s0", rr)
+_, nh, bh, ah_ = parallel_tx("rrnA_half_s0", rr)
+lf, _, _, alf = parallel_tx("lcrns_full_s0", rl)
+lh, _, _, alh = parallel_tx("lcrns_half_s0", rl)
+expect("radios RRN-A", f"at full load a node transmits on two contacts at once {nf} times",
+       f"involving {bf} of {af} admitted bundles; at half load once, involving {bh} of {ah_}")
+assert nh == 1
+expect("radios lunar", f"({len(lf[('relay', ('ant', 'surf'))][1])} bundles at full load)",
+       f"this involves {len(lf[('surf', ('relay',))][1])} of {alf} bundles at full load and "
+       f"{len(lh[('surf', ('relay',))][1])} of {alh} at half load")
+expect("radios limitation", f"which touches {bf} of {af} bundles on RRN-A at full load and "
+       f"{len(lf[('surf', ('relay',))][1])} of {alf} on the lunar plan")
+
 # --- ION fix comparison (§4.2) ---
 pat = rows("rrnA_rdet_ion_linkemu_patched.csv")[0]
 unp = next(r for r in a1 if r["arm"] == "ion" and r["load"] == "1.0" and r["seed"] == "2")
